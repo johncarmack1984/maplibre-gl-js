@@ -51,6 +51,12 @@ function createGeoJSONSource(): GeoJSONSourceSpecification {
     };
 }
 
+const mixedLegacyAndExpressionFilter = [
+    'all',
+    ['==', ['get', 'class'], 'rail'],
+    ['in', 'name', '']
+] as any as FilterSpecification;
+
 const getStubMap = () => new StubMap() as any;
 
 function createStyle(map = getStubMap()) {
@@ -225,6 +231,25 @@ describe('Style.loadJSON', () => {
         expect(style.serialize()).toBeUndefined();
         await style.once('style.load');
         expect(style.serialize()).toEqual(createStyleJSON());
+    });
+
+    test('loads a style whose filter mixes legacy and expression syntax, warning instead of blanking the map', async () => {
+        const style = new Style(getStubMap());
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const errorSpy = vi.fn();
+        style.on('error', errorSpy);
+
+        style.loadJSON(createStyleJSON({
+            sources: {geojson: createGeoJSONSource()},
+            layers: [{id: 'symbol', type: 'symbol', source: 'geojson', filter: mixedLegacyAndExpressionFilter}]
+        }));
+
+        await style.once('style.load');
+
+        expect(errorSpy).not.toHaveBeenCalled();
+        expect(style.getLayer('symbol')).toBeTruthy();
+        expect(style.getFilter('symbol')).toEqual(mixedLegacyAndExpressionFilter);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Mixing deprecated filter syntax with expression syntax'));
     });
 
     test('fires "dataloading" (synchronously)', () => {
@@ -3036,6 +3061,20 @@ describe('Style.setFilter', () => {
         expect(spy.mock.calls[0][0]).toBe(MessageType.updateLayers);
         expect(spy.mock.calls[0][1]['layers'][0].id).toBe('symbol');
         expect(spy.mock.calls[0][1]['layers'][0].filter).toBe('notafilter');
+    });
+
+    test('warns instead of emitting for a filter that mixes legacy and expression syntax', async () => {
+        const style = createStyle();
+        await style.once('style.load');
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const errorSpy = vi.fn();
+        style.on('error', errorSpy);
+
+        style.setFilter('symbol', mixedLegacyAndExpressionFilter);
+
+        expect(style.getFilter('symbol')).toEqual(mixedLegacyAndExpressionFilter);
+        expect(errorSpy).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Mixing deprecated filter syntax with expression syntax'));
     });
 });
 
