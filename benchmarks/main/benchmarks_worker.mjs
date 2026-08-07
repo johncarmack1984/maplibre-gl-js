@@ -10683,23 +10683,23 @@ var Evented = class {
 		return this;
 	}
 	fire(event, properties) {
-		if (typeof event === "string") event = new Event(event, properties || {});
-		const type = event.type;
+		const firedEvent = typeof event === "string" ? new Event(event, properties || {}) : event;
+		const type = firedEvent.type;
 		if (this.listens(type)) {
-			event.target = this;
-			const listeners = this._listeners?.[type] ? this._listeners[type].slice() : [];
-			for (const listener of listeners) listener.call(this, event);
-			const oneTimeListeners = this._oneTimeListeners?.[type] ? this._oneTimeListeners[type].slice() : [];
+			firedEvent.target = this;
+			const listeners = this._listeners?.[type]?.slice() ?? [];
+			for (const listener of listeners) listener.call(this, firedEvent);
+			const oneTimeListeners = this._oneTimeListeners?.[type]?.slice() ?? [];
 			for (const listener of oneTimeListeners) {
 				_removeEventListener(type, listener, this._oneTimeListeners);
-				listener.call(this, event);
+				listener.call(this, firedEvent);
 			}
 			const parent = this._eventedParent;
 			if (parent) {
-				extend(event, typeof this._eventedParentData === "function" ? this._eventedParentData() : this._eventedParentData);
-				parent.fire(event);
+				extend(firedEvent, typeof this._eventedParentData === "function" ? this._eventedParentData() : this._eventedParentData);
+				parent.fire(firedEvent);
 			}
-		} else if (event instanceof ErrorEvent) console.error(event.error);
+		} else if (firedEvent instanceof ErrorEvent) console.error(firedEvent.error);
 		return this;
 	}
 	/**
@@ -10709,7 +10709,7 @@ var Evented = class {
 	* @returns `true` if there is at least one registered listener for specified event type, `false` otherwise
 	*/
 	listens(type) {
-		return this._listeners?.[type]?.length > 0 || this._oneTimeListeners?.[type]?.length > 0 || this._eventedParent?.listens(type);
+		return Boolean(this._listeners?.[type]?.length || this._oneTimeListeners?.[type]?.length || this._eventedParent?.listens(type));
 	}
 	/**
 	* Bubble all events fired by this instance of Evented to this parent instance of Evented.
@@ -14572,6 +14572,8 @@ var Texture = class {
 			gl.deleteTexture(this.texture);
 			this.texture = gl.createTexture();
 			this._ownedHandle = this.texture;
+			this.filter = void 0;
+			this.wrap = void 0;
 		}
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		context.pixelStoreUnpackFlipY.set(false);
@@ -28762,7 +28764,6 @@ var WorkerTile = class {
 		this.inFlightDependencies = [];
 	}
 	async parse(data, layerIndex, availableImages, actor, subdivisionGranularity) {
-		this.status = "parsing";
 		this.data = data;
 		this.collisionBoxArray = new CollisionBoxArray();
 		const sourceLayerCoder = new DictionaryCoder(Object.keys(data.layers).sort());
@@ -28897,7 +28898,6 @@ var WorkerTile = class {
 				bucket.addFeatures(options, this.tileID.canonical, imageAtlas.patternPositions, dashPositions);
 			}
 		}
-		this.status = "done";
 		return {
 			buckets: Object.values(buckets).filter((b) => !b.isEmpty()),
 			featureIndex,
@@ -29132,20 +29132,15 @@ var VectorTileWorkerSource = class {
 			const resourceTiming = this._finishRequestTiming(timing);
 			workerTile.vectorTile = vectorTile;
 			this.tileState.markLoaded(uid, workerTile);
-			const parseState = {
+			const parsingState = {
 				rawData,
 				cacheControl,
 				resourceTiming
 			};
-			this.tileState.setParsing(uid, parseState);
-			try {
-				return await this._parseWorkerTile(workerTile, params, parseState);
-			} finally {
-				this.tileState.removeParsing(uid);
-			}
+			this.tileState.setParsing(uid, parsingState);
+			return await this._parseWorkerTile(workerTile, params);
 		} catch (err) {
 			this.tileState.finishLoading(uid);
-			workerTile.status = "done";
 			this.tileState.markLoaded(uid, workerTile);
 			throw err;
 		}
@@ -29153,7 +29148,8 @@ var VectorTileWorkerSource = class {
 	_getEtagUnmodifiedResult(response, timing) {
 		return extend({ etagUnmodified: true }, this._getExpiryData(response), this._finishRequestTiming(timing));
 	}
-	async _parseWorkerTile(workerTile, params, parseState) {
+	async _parseWorkerTile(workerTile, params) {
+		const parseState = this.tileState.getParsing(workerTile.uid);
 		let result = await workerTile.parse(workerTile.vectorTile, this.layerIndex, this.availableImages, this.actor, params.subdivisionGranularity);
 		if (parseState) {
 			const { rawData, cacheControl, resourceTiming } = parseState;
@@ -29162,6 +29158,7 @@ var VectorTileWorkerSource = class {
 				rawTileData: rawData.slice(0),
 				encoding
 			}, result, cacheControl, resourceTiming);
+			this.tileState.removeParsing(workerTile.uid);
 		}
 		return result;
 	}
@@ -29215,16 +29212,9 @@ var VectorTileWorkerSource = class {
 		const uid = params.uid;
 		const workerTile = this.tileState.getLoaded(uid);
 		if (!workerTile) throw new Error("Should not be trying to reload a tile that was never loaded or has been removed");
+		if (!workerTile.vectorTile) return;
 		workerTile.showCollisionBoxes = params.showCollisionBoxes;
-		if (workerTile.status === "parsing") {
-			const parseState = this.tileState.getParsing(uid);
-			try {
-				return await this._parseWorkerTile(workerTile, params, parseState);
-			} finally {
-				this.tileState.removeParsing(uid);
-			}
-		}
-		if (workerTile.status === "done" && workerTile.vectorTile) return await this._parseWorkerTile(workerTile, params);
+		return await this._parseWorkerTile(workerTile, params);
 	}
 	/**
 	* Implements {@link WorkerSource.abortTile}.
@@ -29310,35 +29300,16 @@ var GeoJSONWorkerSource = class {
 			const { vectorTile, rawData } = loadResult;
 			workerTile.vectorTile = vectorTile;
 			this.tileState.markLoaded(uid, workerTile);
-			const parseState = { rawData };
-			this.tileState.setParsing(uid, parseState);
-			try {
-				return await this._parseWorkerTile(workerTile, params, parseState);
-			} finally {
-				this.tileState.removeParsing(uid);
-			}
+			const parsingState = { rawData };
+			this.tileState.setParsing(uid, parsingState);
+			return await this._parseWorkerTile(workerTile, params);
 		} catch (err) {
-			workerTile.status = "done";
 			this.tileState.markLoaded(uid, workerTile);
 			throw err;
 		}
 	}
-	async _reloadLoadedTile(params) {
-		const uid = params.uid;
-		const workerTile = this.tileState.getLoaded(uid);
-		if (!workerTile) throw new Error("Should not be trying to reload a tile that was never loaded or has been removed");
-		workerTile.showCollisionBoxes = params.showCollisionBoxes;
-		if (workerTile.status === "parsing") {
-			const parseState = this.tileState.getParsing(uid);
-			try {
-				return await this._parseWorkerTile(workerTile, params, parseState);
-			} finally {
-				this.tileState.removeParsing(uid);
-			}
-		}
-		if (workerTile.status === "done" && workerTile.vectorTile) return await this._parseWorkerTile(workerTile, params);
-	}
-	async _parseWorkerTile(workerTile, params, parseState) {
+	async _parseWorkerTile(workerTile, params) {
+		const parseState = this.tileState.getParsing(workerTile.uid);
 		let result = await workerTile.parse(workerTile.vectorTile, this.layerIndex, this.availableImages, this.actor, params.subdivisionGranularity);
 		if (parseState) {
 			const { rawData } = parseState;
@@ -29346,6 +29317,7 @@ var GeoJSONWorkerSource = class {
 				rawTileData: rawData.slice(0),
 				encoding: "mvt"
 			}, result);
+			this.tileState.removeParsing(workerTile.uid);
 		}
 		return result;
 	}
@@ -29413,9 +29385,13 @@ var GeoJSONWorkerSource = class {
 	* @param params - the parameters
 	* @returns A promise that resolves when the tile is reloaded
 	*/
-	reloadTile(params) {
-		if (this.tileState.getLoaded(params.uid)) return this._reloadLoadedTile(params);
-		return this.loadTile(params);
+	async reloadTile(params) {
+		const uid = params.uid;
+		const workerTile = this.tileState.getLoaded(uid);
+		if (!workerTile) return await this.loadTile(params);
+		if (!workerTile.vectorTile) return;
+		workerTile.showCollisionBoxes = params.showCollisionBoxes;
+		return await this._parseWorkerTile(workerTile, params);
 	}
 	/**
 	* Fetch, parse and process GeoJSON according to the given parameters.
