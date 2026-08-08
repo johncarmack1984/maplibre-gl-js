@@ -11334,193 +11334,6 @@ function convertHasOp$1(property) {
 function convertNegation(filter) {
 	return ["!", filter];
 }
-function convertLiteral(value) {
-	return typeof value === "object" ? ["literal", value] : value;
-}
-function convertFunction(parameters, propertySpec) {
-	let stops = parameters.stops;
-	if (!stops) return convertIdentityFunction(parameters, propertySpec);
-	const zoomAndFeatureDependent = stops && typeof stops[0][0] === "object";
-	const featureDependent = zoomAndFeatureDependent || parameters.property !== void 0;
-	const zoomDependent = zoomAndFeatureDependent || !featureDependent;
-	stops = stops.map((stop) => {
-		if (!featureDependent && propertySpec.tokens && typeof stop[1] === "string") return [stop[0], convertTokenString(stop[1])];
-		return [stop[0], convertLiteral(stop[1])];
-	});
-	if (zoomAndFeatureDependent) return convertZoomAndPropertyFunction(parameters, propertySpec, stops);
-	else if (zoomDependent) return convertZoomFunction(parameters, propertySpec, stops);
-	else return convertPropertyFunction(parameters, propertySpec, stops);
-}
-function convertIdentityFunction(parameters, propertySpec) {
-	const get = ["get", parameters.property];
-	if (parameters.default === void 0) return propertySpec.type === "string" ? ["string", get] : get;
-	else if (propertySpec.type === "enum") return [
-		"match",
-		get,
-		Object.keys(propertySpec.values),
-		get,
-		parameters.default
-	];
-	else {
-		const expression = [
-			propertySpec.type === "color" ? "to-color" : propertySpec.type,
-			get,
-			convertLiteral(parameters.default)
-		];
-		if (propertySpec.type === "array") expression.splice(1, 0, propertySpec.value, propertySpec.length || null);
-		return expression;
-	}
-}
-function getInterpolateOperator(parameters) {
-	switch (parameters.colorSpace) {
-		case "hcl": return "interpolate-hcl";
-		case "lab": return "interpolate-lab";
-		default: return "interpolate";
-	}
-}
-function convertZoomAndPropertyFunction(parameters, propertySpec, stops) {
-	const featureFunctionParameters = {};
-	const featureFunctionStops = {};
-	const zoomStops = [];
-	for (let s = 0; s < stops.length; s++) {
-		const stop = stops[s];
-		const zoom = stop[0].zoom;
-		if (featureFunctionParameters[zoom] === void 0) {
-			featureFunctionParameters[zoom] = {
-				zoom,
-				type: parameters.type,
-				property: parameters.property,
-				default: parameters.default
-			};
-			featureFunctionStops[zoom] = [];
-			zoomStops.push(zoom);
-		}
-		featureFunctionStops[zoom].push([stop[0].value, stop[1]]);
-	}
-	if (getFunctionType({}, propertySpec) === "exponential") {
-		const expression = [
-			getInterpolateOperator(parameters),
-			["linear"],
-			["zoom"]
-		];
-		for (const z of zoomStops) appendStopPair(expression, z, convertPropertyFunction(featureFunctionParameters[z], propertySpec, featureFunctionStops[z]), false);
-		return expression;
-	} else {
-		const expression = ["step", ["zoom"]];
-		for (const z of zoomStops) appendStopPair(expression, z, convertPropertyFunction(featureFunctionParameters[z], propertySpec, featureFunctionStops[z]), true);
-		fixupDegenerateStepCurve(expression);
-		return expression;
-	}
-}
-function coalesce(a, b) {
-	if (a !== void 0) return a;
-	if (b !== void 0) return b;
-}
-function getFallback(parameters, propertySpec) {
-	const defaultValue = convertLiteral(coalesce(parameters.default, propertySpec.default));
-	if (defaultValue === void 0 && propertySpec.type === "resolvedImage") return "";
-	return defaultValue;
-}
-function convertPropertyFunction(parameters, propertySpec, stops) {
-	const type = getFunctionType(parameters, propertySpec);
-	const get = ["get", parameters.property];
-	if (type === "categorical" && typeof stops[0][0] === "boolean") {
-		const expression = ["case"];
-		for (const stop of stops) expression.push([
-			"==",
-			get,
-			stop[0]
-		], stop[1]);
-		expression.push(getFallback(parameters, propertySpec));
-		return expression;
-	} else if (type === "categorical") {
-		const expression = ["match", get];
-		for (const stop of stops) appendStopPair(expression, stop[0], stop[1], false);
-		expression.push(getFallback(parameters, propertySpec));
-		return expression;
-	} else if (type === "interval") {
-		const expression = ["step", ["number", get]];
-		for (const stop of stops) appendStopPair(expression, stop[0], stop[1], true);
-		fixupDegenerateStepCurve(expression);
-		return parameters.default === void 0 ? expression : [
-			"case",
-			[
-				"==",
-				["typeof", get],
-				"number"
-			],
-			expression,
-			convertLiteral(parameters.default)
-		];
-	} else if (type === "exponential") {
-		const base = parameters.base !== void 0 ? parameters.base : 1;
-		const expression = [
-			getInterpolateOperator(parameters),
-			base === 1 ? ["linear"] : ["exponential", base],
-			["number", get]
-		];
-		for (const stop of stops) appendStopPair(expression, stop[0], stop[1], false);
-		return parameters.default === void 0 ? expression : [
-			"case",
-			[
-				"==",
-				["typeof", get],
-				"number"
-			],
-			expression,
-			convertLiteral(parameters.default)
-		];
-	} else throw new Error(`Unknown property function type ${type}`);
-}
-function convertZoomFunction(parameters, propertySpec, stops, input = ["zoom"]) {
-	const type = getFunctionType(parameters, propertySpec);
-	let expression;
-	let isStep = false;
-	if (type === "interval") {
-		expression = ["step", input];
-		isStep = true;
-	} else if (type === "exponential") {
-		const base = parameters.base !== void 0 ? parameters.base : 1;
-		expression = [
-			getInterpolateOperator(parameters),
-			base === 1 ? ["linear"] : ["exponential", base],
-			input
-		];
-	} else throw new Error(`Unknown zoom function type "${type}"`);
-	for (const stop of stops) appendStopPair(expression, stop[0], stop[1], isStep);
-	fixupDegenerateStepCurve(expression);
-	return expression;
-}
-function fixupDegenerateStepCurve(expression) {
-	if (expression[0] === "step" && expression.length === 3) {
-		expression.push(0);
-		expression.push(expression[3]);
-	}
-}
-function appendStopPair(curve, input, output, isStep) {
-	if (curve.length > 3 && input === curve[curve.length - 2]) return;
-	if (!(isStep && curve.length === 2)) curve.push(input);
-	curve.push(output);
-}
-function getFunctionType(parameters, propertySpec) {
-	if (parameters.type) return parameters.type;
-	else return propertySpec.expression.interpolated ? "exponential" : "interval";
-}
-function convertTokenString(s) {
-	const result = ["concat"];
-	const re = /{([^{}]+)}/g;
-	let pos = 0;
-	for (let match = re.exec(s); match !== null; match = re.exec(s)) {
-		const literal = s.slice(pos, re.lastIndex - match[0].length);
-		pos = re.lastIndex;
-		if (literal.length > 0) result.push(literal);
-		result.push(["get", match[1]]);
-	}
-	if (result.length === 1) return s;
-	if (pos < s.length) result.push(s.slice(pos));
-	else if (result.length === 2) return ["to-string", result[1]];
-	return result;
-}
 function stringify$1(obj) {
 	const type = typeof obj;
 	if (type === "number" || type === "boolean" || type === "string" || obj === void 0 || obj === null) return JSON.stringify(obj);
@@ -22372,15 +22185,15 @@ function parseGlyphPbf(data) {
 }
 //#endregion
 //#region src/style/style_image.ts
+function isStyleImageWebGLData(data) {
+	return typeof data?.renderWithWebGL === "function";
+}
 function renderStyleImage(image) {
 	const { userImage } = image;
-	if (userImage?.render) {
-		if (userImage.render()) {
-			image.data.replace(new Uint8Array(userImage.data.buffer));
-			return true;
-		}
-	}
-	return false;
+	if (!userImage?.render) return false;
+	if (!userImage.render()) return false;
+	if (!isStyleImageWebGLData(userImage.data)) image.data.replace(new Uint8Array(userImage.data.buffer));
+	return true;
 }
 //#endregion
 //#region node_modules/potpack/index.js
@@ -22457,13 +22270,14 @@ function potpack(boxes) {
 	};
 }
 var ImagePosition = class {
-	constructor(paddedRect, { pixelRatio, version, stretchX, stretchY, content, textFitWidth, textFitHeight }) {
+	constructor(paddedRect, { pixelRatio, version, isWebGLImage = false, stretchX, stretchY, content, textFitWidth, textFitHeight }) {
 		this.paddedRect = paddedRect;
 		this.pixelRatio = pixelRatio;
 		this.stretchX = stretchX;
 		this.stretchY = stretchY;
 		this.content = content;
 		this.version = version;
+		this.needsFirstWebGLRender = isWebGLImage;
 		this.textFitWidth = textFitWidth;
 		this.textFitHeight = textFitHeight;
 	}
@@ -22497,6 +22311,7 @@ var ImageAtlas = class {
 		});
 		for (const id in icons) {
 			const src = icons[id];
+			if (src.isWebGLImage) continue;
 			const bin = iconPositions[id].paddedRect;
 			RGBAImage.copy(src.data, image, {
 				x: 0,
@@ -22585,13 +22400,29 @@ var ImageAtlas = class {
 	}
 	patchUpdatedImage(position, image, texture) {
 		if (!position || !image) return;
-		if (position.version === image.version) return;
+		if (!position.needsFirstWebGLRender && position.version === image.version) return;
+		position.needsFirstWebGLRender = false;
 		position.version = image.version;
 		const [x, y] = position.tl;
-		texture.update(image.data, void 0, {
+		const data = image.userImage?.data;
+		if (!isStyleImageWebGLData(data)) {
+			texture.update(image.data, void 0, {
+				x,
+				y
+			});
+			return;
+		}
+		const { width, height } = image.data;
+		texture.context.setCustomLayerDefaults();
+		data.renderWithWebGL({
+			gl: texture.context.gl,
+			texture: texture.texture,
 			x,
-			y
+			y,
+			width,
+			height
 		});
+		texture.context.setDirty();
 	}
 };
 register$1("ImagePosition", ImagePosition);
@@ -24191,7 +24022,10 @@ var ImageManager = class extends Evented {
 	}
 	addImage(id, image) {
 		if (this.images[id]) throw new Error(`Image id ${id} already exist, use updateImage instead`);
-		if (this._validate(id, image)) this.images[id] = image;
+		if (this._validate(id, image)) {
+			this.images[id] = image;
+			if (image.isWebGLImage) this.updateImage(id, image, false);
+		}
 	}
 	_validate(id, image) {
 		let valid = true;
@@ -24283,7 +24117,8 @@ var ImageManager = class extends Evented {
 					content: image.content,
 					textFitWidth: image.textFitWidth,
 					textFitHeight: image.textFitHeight,
-					hasRenderCallback: Boolean(image.userImage?.render)
+					hasRenderCallback: Boolean(image.userImage?.render),
+					isWebGLImage: image.isWebGLImage
 				};
 			}
 		}
@@ -38995,10 +38830,18 @@ var MercatorTransform = class MercatorTransform {
 		const elevation = terrain ? terrain.getElevationForLngLatZoom(center, this._helper._tileZoom) : 0;
 		this._helper.recalculateZoomAndCenter(elevation);
 	}
-	setLocationAtPoint(lnglat, point) {
-		const z = mercatorZfromAltitude(this.elevation, this.center.lat);
+	/**
+	* Moves the center so that `lnglat`, on the ground at `elevation` meters, renders
+	* at the screen `point`. Both rays are cast through the same inverse pixel matrix
+	* so its inversion error cancels out of their difference; the current-center ray
+	* must be intersected at the center's own elevation (z=0) — intersecting it with
+	* the elevated plane would land `(elevation - centerElevation)·tan(pitch)` away
+	* from the center and make repeated calls drift.
+	*/
+	setLocationAtPoint(lnglat, point, elevation = this.elevation) {
+		const z = elevation - this.elevation;
 		const a = this.screenPointToMercatorCoordinateAtZ(point, z);
-		const b = this.screenPointToMercatorCoordinateAtZ(this.centerPoint, z);
+		const b = this.screenPointToMercatorCoordinateAtZ(this.centerPoint, 0);
 		const loc = MercatorCoordinate.fromLngLat(lnglat);
 		const newCenter = new MercatorCoordinate(loc.x - (a.x - b.x), loc.y - (a.y - b.y));
 		this.setCenter(newCenter?.toLngLat());
@@ -39010,6 +38853,9 @@ var MercatorTransform = class MercatorTransform {
 	screenPointToLocation(p, terrain) {
 		return this.screenPointToMercatorCoordinate(p, terrain)?.toLngLat();
 	}
+	screenPointToLocationAtElevation(p, elevation) {
+		return this.screenPointToMercatorCoordinateAtZ(p, elevation - this.elevation)?.toLngLat();
+	}
 	screenPointToMercatorCoordinate(p, terrain) {
 		if (terrain) {
 			const coordinate = terrain.pointCoordinate(p);
@@ -39017,8 +38863,12 @@ var MercatorTransform = class MercatorTransform {
 		}
 		return this.screenPointToMercatorCoordinateAtZ(p);
 	}
-	screenPointToMercatorCoordinateAtZ(p, mercatorZ) {
-		const targetZ = mercatorZ ? mercatorZ : 0;
+	/**
+	* Intersects the ray through a screen point with the horizontal plane at `z`,
+	* given in meters relative to the plane at the center's elevation (not mercator units).
+	*/
+	screenPointToMercatorCoordinateAtZ(p, z) {
+		const targetZ = z ? z : 0;
 		const coord0 = [
 			p.x,
 			p.y,
@@ -39454,7 +39304,7 @@ var MercatorCameraHelper = class {
 	}
 	handleMapControlsPan(deltas, tr, preZoomAroundLoc) {
 		if (deltas.around.distSqr(tr.centerPoint) < .01) return;
-		tr.setLocationAtPoint(preZoomAroundLoc, deltas.around);
+		tr.setLocationAtPoint(preZoomAroundLoc, deltas.around, deltas.aroundElevation);
 	}
 	cameraForBoxAndBearing(options, padding, bounds, bearing, tr) {
 		return cameraForBoxAndBearing(options, padding, bounds, bearing, tr);
@@ -40916,7 +40766,7 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 	* Note: automatically adjusts zoom to keep planet size consistent
 	* (same size before and after a {@link setLocationAtPoint} call).
 	*/
-	setLocationAtPoint(lnglat, point) {
+	setLocationAtPoint(lnglat, point, _elevation) {
 		const vecToPixelCurrent = angularCoordinatesToSurfaceVector(this.unprojectScreenPoint(point));
 		const vecToTarget = angularCoordinatesToSurfaceVector(lnglat);
 		const zero = createVec3f64();
@@ -40994,6 +40844,9 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 	}
 	screenPointToLocation(p, terrain) {
 		return this.screenPointToMercatorCoordinate(p, terrain)?.toLngLat();
+	}
+	screenPointToLocationAtElevation(p, _elevation) {
+		return this.screenPointToLocation(p);
 	}
 	isPointOnMapSurface(p, _terrain) {
 		const rayOrigin = this._cameraPosition;
@@ -41473,13 +41326,13 @@ var GlobeTransform = class GlobeTransform {
 	* Note: automatically adjusts zoom to keep planet size consistent
 	* (same size before and after a {@link setLocationAtPoint} call).
 	*/
-	setLocationAtPoint(lnglat, point) {
+	setLocationAtPoint(lnglat, point, elevation) {
 		if (!this.isGlobeRendering) {
-			this._mercatorTransform.setLocationAtPoint(lnglat, point);
+			this._mercatorTransform.setLocationAtPoint(lnglat, point, elevation);
 			this.apply(this._mercatorTransform, false);
 			return;
 		}
-		this._verticalPerspectiveTransform.setLocationAtPoint(lnglat, point);
+		this._verticalPerspectiveTransform.setLocationAtPoint(lnglat, point, elevation);
 		this.apply(this._verticalPerspectiveTransform, false);
 	}
 	locationToScreenPoint(lnglat, terrain) {
@@ -41490,6 +41343,9 @@ var GlobeTransform = class GlobeTransform {
 	}
 	screenPointToLocation(p, terrain) {
 		return this.currentTransform.screenPointToLocation(p, terrain);
+	}
+	screenPointToLocationAtElevation(p, elevation) {
+		return this.currentTransform.screenPointToLocationAtElevation(p, elevation);
 	}
 	isPointOnMapSurface(p, terrain) {
 		return this.currentTransform.isPointOnMapSurface(p, terrain);
@@ -45264,6 +45120,24 @@ var Context = class {
 		this.pixelStoreUnpackPremultiplyAlpha.dirty = true;
 		this.pixelStoreUnpackFlipY.dirty = true;
 	}
+	/**
+	* Reset some GL state to default values before handing users the raw context, as we do for
+	* custom layers and WebGL style images, to avoid hard-to-debug bugs in their code.
+	*
+	* MapLibre restores all of its own state afterwards, so the only state worth resetting first
+	* is state users would be surprised to find dirty: `CULL_FACE`, `TEXTURE0` and the three
+	* `UNPACK_` settings, whose defaults are meaningful enough that most code assumes them.
+	* The vertex array is unbound rather than reset, so that MapLibre never has to track it and
+	* a user's `vertexAttribPointer` calls cannot land on one of ours.
+	*/
+	setCustomLayerDefaults() {
+		this.unbindVAO();
+		this.cullFace.setDefault();
+		this.activeTexture.setDefault();
+		this.pixelStoreUnpack.setDefault();
+		this.pixelStoreUnpackPremultiplyAlpha.setDefault();
+		this.pixelStoreUnpackFlipY.setDefault();
+	}
 	createIndexBuffer(array, dynamicDraw) {
 		return new IndexBuffer(this, array, dynamicDraw);
 	}
@@ -47581,12 +47455,7 @@ var Painter = class Painter {
 		return this.cache[key];
 	}
 	setCustomLayerDefaults() {
-		this.context.unbindVAO();
-		this.context.cullFace.setDefault();
-		this.context.activeTexture.setDefault();
-		this.context.pixelStoreUnpack.setDefault();
-		this.context.pixelStoreUnpackPremultiplyAlpha.setDefault();
-		this.context.pixelStoreUnpackFlipY.setDefault();
+		this.context.setCustomLayerDefaults();
 	}
 	setBaseState() {
 		const gl = this.context.gl;
@@ -49777,6 +49646,11 @@ var TransformProvider = class {
 //#endregion
 //#region src/ui/handler_manager.ts
 const isMoving = (p) => p.zoom || p.drag || p.roll || p.pitch || p.rotate;
+/**
+* A terrain gesture's anchor plane must stay below this fraction of the camera's
+* altitude over the center-elevation plane, or the ray-plane solve degenerates.
+*/
+const TERRAIN_ANCHOR_MAX_CAMERA_ALTITUDE_FRACTION = .9;
 var RenderFrameEvent = class extends Event {};
 function hasChange(result) {
 	return result.panDelta?.mag() || result.zoomDelta || result.bearingDelta || result.pitchDelta || result.rollDelta;
@@ -49797,6 +49671,7 @@ var HandlerManager = class {
 		return this._el?.ownerDocument?.defaultView || window;
 	}
 	constructor(map, camera, options) {
+		this._terrainGestureAnchorElevation = null;
 		this.handleWindowEvent = (e) => {
 			this.handleEvent(e, `${e.type}Window`);
 		};
@@ -50094,20 +49969,20 @@ var HandlerManager = class {
 			return;
 		}
 		this._camera.stop(true);
-		let { panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta, around, pinchAround } = combinedResult;
-		if (pinchAround !== void 0) around = pinchAround;
-		around ||= this._camera.transform.centerPoint;
-		if (terrain && !tr.isPointOnMapSurface(around)) around = tr.centerPoint;
+		const { panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta } = combinedResult;
+		let { around, aroundOnSurface } = this._resolveAround(combinedResult, terrain, tr);
+		const aroundElevation = terrain ? this._terrainGestureElevation(terrain, around, aroundOnSurface, tr, combinedEventsInProgress) : void 0;
 		const deltasForHelper = {
 			panDelta,
 			zoomDelta,
 			rollDelta,
 			pitchDelta,
 			bearingDelta,
-			around
+			around,
+			aroundElevation
 		};
 		if (this._camera.cameraHelper.useGlobeControls && !tr.isPointOnMapSurface(around)) around = tr.centerPoint;
-		const preZoomAroundLoc = around.distSqr(tr.centerPoint) < .01 ? tr.center : tr.screenPointToLocation(panDelta ? around.sub(panDelta) : around);
+		const preZoomAroundLoc = this._computePreZoomAroundLoc(tr, around, panDelta, aroundElevation);
 		this._handleMapControls({
 			terrain,
 			tr,
@@ -50120,6 +49995,54 @@ var HandlerManager = class {
 		this._map._update();
 		if (!combinedResult.noInertia) this._inertia.record(combinedResult);
 		this._fireEvents(combinedEventsInProgress, deactivatedHandlers, true);
+	}
+	/**
+	* The gesture's anchor point: the pinch midpoint when pinching, otherwise the
+	* pan's anchor, clamped to the center point when it does not lie on the map.
+	*/
+	_resolveAround(combinedResult, terrain, tr) {
+		let around = combinedResult.pinchAround !== void 0 ? combinedResult.pinchAround : combinedResult.around;
+		around ||= this._camera.transform.centerPoint;
+		if (terrain && !tr.isPointOnMapSurface(around)) return {
+			around: tr.centerPoint,
+			aroundOnSurface: false
+		};
+		return {
+			around,
+			aroundOnSurface: true
+		};
+	}
+	/**
+	* The elevation of the plane a terrain gesture is solved on: the elevation of the
+	* terrain point grabbed at gesture start, captured here on the gesture's first
+	* frame. Undefined means the gesture is solved at the center's elevation instead —
+	* when the grabbed terrain is not loaded, the anchor is the center point (a
+	* center-point anchor is skipped by the camera helper and would lose the pan), or
+	* the anchor plane is too close to the camera for a stable ray-plane solve.
+	*/
+	_terrainGestureElevation(terrain, around, aroundOnSurface, tr, combinedEventsInProgress) {
+		if (!aroundOnSurface) return;
+		if (!this._terrainMovement && (combinedEventsInProgress.drag || combinedEventsInProgress.zoom)) {
+			const anchor = terrain.pointCoordinate(around);
+			this._terrainGestureAnchorElevation = anchor ? anchor.z : null;
+		}
+		if (this._terrainGestureAnchorElevation === null) return;
+		const elevation = this._terrainGestureAnchorElevation;
+		if (around.distSqr(tr.centerPoint) < .01) return;
+		if (elevation - tr.elevation >= TERRAIN_ANCHOR_MAX_CAMERA_ALTITUDE_FRACTION * (tr.getCameraAltitude() - tr.elevation)) return;
+		return elevation;
+	}
+	/**
+	* The location that was under `around` before this frame's deltas — the point the
+	* camera helper re-anchors after zooming — solved at `aroundElevation` when a
+	* terrain gesture provides one. When rotating about the center point, the
+	* transform's center is used directly to avoid numerical issues near the horizon.
+	*/
+	_computePreZoomAroundLoc(tr, around, panDelta, aroundElevation) {
+		if (around.distSqr(tr.centerPoint) < .01) return tr.center;
+		const aroundPreviousPoint = panDelta ? around.sub(panDelta) : around;
+		if (aroundElevation !== void 0) return tr.screenPointToLocationAtElevation(aroundPreviousPoint, aroundElevation);
+		return tr.screenPointToLocation(aroundPreviousPoint);
 	}
 	_handleMapControls({ terrain, tr, deltasForHelper, preZoomAroundLoc, combinedEventsInProgress, panDelta }) {
 		const cameraHelper = this._camera.cameraHelper;
@@ -50142,7 +50065,7 @@ var HandlerManager = class {
 			cameraHelper.handleMapControlsPan(deltasForHelper, tr, preZoomAroundLoc);
 			return;
 		}
-		if (combinedEventsInProgress.drag && this._terrainMovement && panDelta) {
+		if (deltasForHelper.aroundElevation === void 0 && combinedEventsInProgress.drag && this._terrainMovement && panDelta) {
 			tr.setCenter(tr.screenPointToLocation(tr.centerPoint.sub(panDelta)));
 			return;
 		}
@@ -50180,6 +50103,7 @@ var HandlerManager = class {
 		if (finishedMoving && this._terrainMovement) {
 			this._camera.elevationFreeze = false;
 			this._terrainMovement = false;
+			this._terrainGestureAnchorElevation = null;
 			const tr = this._camera.getTransformForUpdate();
 			if (this._map.getCenterClampedToGround()) tr.recalculateZoomAndCenter(this._map.terrain);
 			this._camera.applyUpdatedTransform(tr);
@@ -52057,7 +51981,13 @@ var Map$1 = class extends Evented {
 		};
 		this._contextRestored = (event) => {
 			if (this._lostContextStyle.style) this.setStyle(this._lostContextStyle.style, { diff: false });
-			if (this._lostContextStyle.images && this.style) this.style.imageManager.images = this._lostContextStyle.images;
+			if (this._lostContextStyle.images && this.style) {
+				this.style.imageManager.images = this._lostContextStyle.images;
+				for (const id in this._lostContextStyle.images) {
+					const image = this._lostContextStyle.images[id];
+					if (image.isWebGLImage) this.style.imageManager.updateImage(id, image, false);
+				}
+			}
 			this._lostContextStyle = {
 				style: null,
 				images: null
@@ -54134,8 +54064,12 @@ var Map$1 = class extends Evented {
 		} else {
 			const { width, height, data } = image;
 			const userImage = image;
+			const isWebGLImage = isStyleImageWebGLData(userImage.data);
 			return {
-				data: new RGBAImage({
+				data: isWebGLImage ? new RGBAImage({
+					width,
+					height
+				}) : new RGBAImage({
 					width,
 					height
 				}, new Uint8Array(data)),
@@ -54147,6 +54081,7 @@ var Map$1 = class extends Evented {
 				textFitHeight,
 				sdf,
 				version,
+				isWebGLImage,
 				userImage
 			};
 		}
@@ -54177,8 +54112,12 @@ var Map$1 = class extends Evented {
 		const { width, height, data } = image instanceof HTMLImageElement || isImageBitmap(image) ? browser.getImageData(image) : image;
 		if (width === void 0 || height === void 0) return this.fire(new ErrorEvent(/* @__PURE__ */ new Error("Invalid arguments to map.updateImage(). The second argument must be an `HTMLImageElement`, `ImageData`, `ImageBitmap`, or object with `width`, `height`, and `data` properties with the same format as `ImageData`")));
 		if (width !== existingImage.data.width || height !== existingImage.data.height) return this.fire(new ErrorEvent(/* @__PURE__ */ new Error("The width and height of the updated image must be that same as the previous version of the image")));
-		const copy = !(image instanceof HTMLImageElement || isImageBitmap(image));
-		existingImage.data.replace(data, copy);
+		existingImage.isWebGLImage = isStyleImageWebGLData(data);
+		if (existingImage.isWebGLImage) existingImage.userImage = image;
+		else {
+			const copy = !(image instanceof HTMLImageElement || isImageBitmap(image));
+			existingImage.data.replace(data, copy);
+		}
 		this.style.updateImage(id, existingImage);
 		return this;
 	}
@@ -56194,35 +56133,6 @@ var ColorReliefLoad = class extends Benchmark {
 	}
 };
 //#endregion
-//#region test/bench/benchmarks/style_validate.ts
-var StyleValidate = class extends Benchmark {
-	constructor(style) {
-		super();
-		this.style = style;
-	}
-	async setup() {
-		this.json = await fetchStyle(this.style);
-	}
-	bench() {
-		validateStyleMin(this.json);
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/style_layer_create.ts
-var StyleLayerCreate = class extends Benchmark {
-	constructor(style) {
-		super();
-		this.style = style;
-	}
-	async setup() {
-		const json = await fetchStyle(this.style);
-		this.layers = derefLayers(json.layers);
-	}
-	bench() {
-		for (const layer of this.layers) createStyleLayer(layer, {});
-	}
-};
-//#endregion
 //#region test/bench/benchmarks/query_point.ts
 const width$1 = 1024;
 const height$1 = 768;
@@ -56287,1607 +56197,6 @@ var QueryBox = class extends Benchmark {
 	}
 	teardown() {
 		for (const map of this.maps) map.remove();
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/expressions.ts
-var ExpressionBenchmark = class extends Benchmark {
-	constructor(style) {
-		super();
-		this.style = style;
-	}
-	async setup() {
-		const json = await fetchStyle(this.style);
-		this.data = [];
-		for (const layer of json.layers) {
-			if (!layer.type) continue;
-			const expressionData = (rawValue, propertySpec) => {
-				const rawExpression = convertFunction(rawValue, propertySpec);
-				const compiledFunction = createFunction(rawValue, propertySpec);
-				const compiledExpression = createPropertyExpression(rawExpression, "expression", propertySpec);
-				if (compiledExpression.result === "error") throw new Error(compiledExpression.value.map((err) => `${err.key}: ${err.message}`).join(", "));
-				return {
-					propertySpec,
-					rawValue,
-					rawExpression,
-					compiledFunction,
-					compiledExpression: compiledExpression.value
-				};
-			};
-			for (const key in layer.paint) if (isFunction(layer.paint[key])) this.data.push(expressionData(layer.paint[key], latest[`paint_${layer.type}`][key]));
-			for (const key in layer.layout) if (isFunction(layer.layout[key])) this.data.push(expressionData(layer.layout[key], latest[`layout_${layer.type}`][key]));
-		}
-	}
-};
-var FunctionCreate = class extends ExpressionBenchmark {
-	bench() {
-		for (const { rawValue, propertySpec } of this.data) createFunction(rawValue, propertySpec);
-	}
-};
-var FunctionEvaluate = class extends ExpressionBenchmark {
-	bench() {
-		for (const { compiledFunction } of this.data) compiledFunction.evaluate({ zoom: 0 });
-	}
-};
-var ExpressionCreate = class extends ExpressionBenchmark {
-	bench() {
-		for (const { rawExpression, propertySpec } of this.data) createPropertyExpression(rawExpression, "expression", propertySpec);
-	}
-};
-var ExpressionEvaluate = class extends ExpressionBenchmark {
-	bench() {
-		for (const { compiledExpression } of this.data) compiledExpression.evaluate({ zoom: 0 });
-	}
-};
-//#endregion
-//#region test/bench/data/filters.json
-var filters_default = [
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"crop"
-		],
-		"layer": "landcover"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"grass"
-		],
-		"layer": "landcover"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"scrub"
-		],
-		"layer": "landcover"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"wood"
-		],
-		"layer": "landcover"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"snow"
-		],
-		"layer": "landcover"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"hospital"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"school"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"park"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"pitch"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"pitch"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"cemetery"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"industrial"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"sand"
-		],
-		"layer": "landuse"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "level"],
-			94
-		],
-		"layer": "hillshade"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "level"],
-			90
-		],
-		"layer": "hillshade"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "level"],
-			89
-		],
-		"layer": "hillshade"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "level"],
-			78
-		],
-		"layer": "hillshade"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "level"],
-			67
-		],
-		"layer": "hillshade"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "level"],
-			56
-		],
-		"layer": "hillshade"
-	},
-	{
-		"filter": ["all", [
-			"match",
-			["get", "class"],
-			["river", "canal"],
-			true,
-			false
-		]],
-		"layer": "waterway"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"land"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"Polygon"
-			]
-		],
-		"layer": "barrier_line"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"land"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "barrier_line"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "type"],
-				"apron"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"Polygon"
-			]
-		],
-		"layer": "aeroway"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"Polygon"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"path"
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"motorway_link"
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["service", "driveway"],
-			true,
-			false
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"!=",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"street"
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"main"
-			],
-			[
-				"!=",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"main"
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"motorway"
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"match",
-				["get", "class"],
-				[
-					"main",
-					"street",
-					"street_limited"
-				],
-				true,
-				false
-			],
-			[
-				"!=",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["major_rail", "minor_rail"],
-			true,
-			false
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"match",
-				["get", "class"],
-				["motorway", "motorway_link"],
-				true,
-				false
-			]
-		],
-		"layer": "tunnel"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"path"
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["service", "driveway"],
-			true,
-			false
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"!=",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"street"
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"main"
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"motorway"
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"match",
-				["get", "class"],
-				[
-					"main",
-					"street",
-					"street_limited"
-				],
-				true,
-				false
-			],
-			[
-				"!=",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["major_rail", "minor_rail"],
-			true,
-			false
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"match",
-				["get", "class"],
-				["motorway", "motorway_link"],
-				true,
-				false
-			]
-		],
-		"layer": "road"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"Polygon"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"path"
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"motorway_link"
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["service", "driveway"],
-			true,
-			false
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"!=",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"street"
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"match",
-				["get", "class"],
-				[
-					"main",
-					"street",
-					"street_limited"
-				],
-				true,
-				false
-			],
-			[
-				"!=",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"any",
-			[
-				"==",
-				["get", "class"],
-				"motorway"
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["service", "driveway"],
-			true,
-			false
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"==",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"street_limited"
-			],
-			[
-				"!=",
-				["get", "type"],
-				"construction"
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"street"
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"main"
-			],
-			[
-				"!=",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "class"],
-				"main"
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"==",
-				["get", "type"],
-				"trunk"
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"motorway"
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["major_rail", "minor_rail"],
-			true,
-			false
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"aerialway"
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"==",
-				["get", "oneway"],
-				1
-			],
-			[
-				"match",
-				["get", "class"],
-				["motorway", "motorway_link"],
-				true,
-				false
-			]
-		],
-		"layer": "bridge"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"hedge"
-		],
-		"layer": "barrier_line"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"fence"
-		],
-		"layer": "barrier_line"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"gate"
-		],
-		"layer": "barrier_line"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				">=",
-				["get", "admin_level"],
-				3
-			],
-			[
-				"==",
-				["get", "maritime"],
-				0
-			]
-		],
-		"layer": "admin"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				">=",
-				["get", "admin_level"],
-				3
-			],
-			[
-				"==",
-				["get", "maritime"],
-				0
-			]
-		],
-		"layer": "admin"
-	},
-	{
-		"filter": [
-			"!=",
-			["get", "index"],
-			5
-		],
-		"layer": "contour"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "index"],
-			5
-		],
-		"layer": "contour"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "class"],
-			"river"
-		],
-		"layer": "waterway_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"rail-light",
-					"rail-metro",
-					"rail",
-					"airport",
-					"airfield",
-					"heliport",
-					"rocket",
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				false,
-				true
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				4
-			],
-			[
-				">=",
-				["get", "localrank"],
-				15
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"rail-light",
-					"rail-metro",
-					"rail",
-					"airport",
-					"airfield",
-					"heliport",
-					"rocket",
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				false,
-				true
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				4
-			],
-			[
-				"<=",
-				["get", "localrank"],
-				14
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"park",
-					"cemetery",
-					"golf",
-					"zoo",
-					"playground"
-				],
-				true,
-				false
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				4
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"rail-light",
-					"rail-metro",
-					"rail",
-					"airport",
-					"airfield",
-					"heliport",
-					"rocket",
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				false,
-				true
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				3
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"park",
-					"cemetery",
-					"golf",
-					"zoo"
-				],
-				true,
-				false
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				3
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "class"],
-				[
-					"motorway",
-					"main",
-					"street_limited",
-					"street"
-				],
-				false,
-				true
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "road_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "class"],
-				["street", "street_limited"],
-				false,
-				true
-			],
-			[
-				"==",
-				["geometry-type"],
-				"LineString"
-			]
-		],
-		"layer": "road_label"
-	},
-	{
-		"filter": [
-			"match",
-			["get", "class"],
-			["main", "motorway"],
-			true,
-			false
-		],
-		"layer": "road_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "shield"],
-				[
-					"us-interstate",
-					"us-interstate-business",
-					"us-interstate-duplex"
-				],
-				false,
-				true
-			],
-			[
-				"<=",
-				["get", "reflen"],
-				6
-			]
-		],
-		"layer": "road_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "shield"],
-				[
-					"us-interstate",
-					"us-interstate-business",
-					"us-interstate-duplex"
-				],
-				true,
-				false
-			],
-			[
-				"<=",
-				["get", "reflen"],
-				6
-			]
-		],
-		"layer": "road_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"rail-light",
-					"rail-metro",
-					"rail",
-					"airport",
-					"airfield",
-					"heliport",
-					"rocket",
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				false,
-				true
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				2
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				true,
-				false
-			],
-			[
-				"==",
-				["get", "scalerank"],
-				2
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "type"],
-			"Rail Station"
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"<=",
-			["get", "area"],
-			1e4
-		],
-		"layer": "water_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				true,
-				false
-			],
-			[
-				"<=",
-				["get", "scalerank"],
-				1
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "maki"],
-				[
-					"rail-light",
-					"rail-metro",
-					"rail",
-					"airport",
-					"airfield",
-					"heliport",
-					"rocket",
-					"park",
-					"golf",
-					"cemetery",
-					"zoo",
-					"campsite",
-					"swimming",
-					"dog-park"
-				],
-				false,
-				true
-			],
-			[
-				"<=",
-				["get", "scalerank"],
-				1
-			],
-			[
-				"!=",
-				["get", "type"],
-				"Island"
-			]
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "type"],
-			"Islet"
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"==",
-			["get", "type"],
-			"Island"
-		],
-		"layer": "poi_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "scalerank"],
-				[
-					0,
-					1,
-					2,
-					3,
-					4,
-					5
-				],
-				false,
-				true
-			],
-			[
-				"==",
-				["get", "type"],
-				"city"
-			]
-		],
-		"layer": "place_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "scalerank"],
-				[
-					3,
-					4,
-					5
-				],
-				true,
-				false
-			],
-			[
-				"==",
-				["get", "type"],
-				"city"
-			],
-			[
-				"match",
-				["get", "ldir"],
-				[
-					"S",
-					"SE",
-					"SW",
-					"E"
-				],
-				true,
-				false
-			]
-		],
-		"layer": "place_label"
-	},
-	{
-		"filter": [
-			"all",
-			[
-				"match",
-				["get", "scalerank"],
-				[
-					3,
-					4,
-					5
-				],
-				true,
-				false
-			],
-			[
-				"==",
-				["get", "type"],
-				"city"
-			],
-			[
-				"match",
-				["get", "ldir"],
-				[
-					"N",
-					"NE",
-					"NW",
-					"W"
-				],
-				true,
-				false
-			]
-		],
-		"layer": "place_label"
-	}
-];
-//#endregion
-//#region test/bench/benchmarks/filter_create.ts
-var FilterCreate = class extends Benchmark {
-	bench() {
-		for (const filter of filters_default) featureFilter(filter.filter, "filter");
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/filter_evaluate.ts
-var FilterEvaluate = class extends Benchmark {
-	async setup() {
-		const tile = new VectorTile(new PbfReader(await (await fetch("/test/bench/data/785.vector.pbf")).arrayBuffer()));
-		this.layers = [];
-		for (const name in tile.layers) {
-			const layer = tile.layers[name];
-			if (!layer.length) continue;
-			const features = [];
-			for (let j = 0; j < layer.length; j++) features.push(layer.feature(j));
-			const layerFilters = [];
-			for (const filter of filters_default) if (filter.layer === name) layerFilters.push(featureFilter(filter.filter, "filter"));
-			this.layers.push({
-				features,
-				filters: layerFilters
-			});
-		}
-	}
-	bench() {
-		for (const layer of this.layers) for (const filter of layer.filters) for (const feature of layer.features) if (typeof filter.filter({ zoom: 0 }, feature) !== "boolean") throw new Error("Expected boolean result from filter");
 	}
 };
 //#endregion
@@ -60513,226 +58822,6 @@ async function importScriptInWorkers(workerUrl) {
 	await getGlobalDispatcher().broadcast("IS", workerUrl);
 }
 //#endregion
-//#region test/bench/benchmarks/symbol_collision_box.ts
-function splitmix32(a) {
-	return function() {
-		a |= 0;
-		a = a + 2654435769 | 0;
-		let t = a ^ a >>> 16;
-		t = Math.imul(t, 569420461);
-		t = t ^ t >>> 15;
-		t = Math.imul(t, 1935289751);
-		return ((t = t ^ t >>> 15) >>> 0) / 4294967296;
-	};
-}
-var SymbolCollisionBox = class extends Benchmark {
-	constructor(useGlobeProjection) {
-		super();
-		this._useGlobeProjection = false;
-		this._useGlobeProjection = useGlobeProjection;
-	}
-	_createTransform() {
-		if (this._useGlobeProjection) return {
-			transform: new GlobeTransform(),
-			calculatePosMatrix: (_tileID) => {}
-		};
-		else {
-			const tr = new MercatorTransform({
-				minZoom: 0,
-				maxZoom: 22,
-				minPitch: 0,
-				maxPitch: 60,
-				renderWorldCopies: true
-			});
-			return {
-				transform: tr,
-				calculatePosMatrix: (tileID) => {
-					return tr.calculatePosMatrix(tileID, false);
-				}
-			};
-		}
-	}
-	async setup() {
-		const { transform, calculatePosMatrix } = this._createTransform();
-		this._transform = transform;
-		transform.resize(1024, 1024);
-		const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
-		const unwrappedTileID = tileID.toUnwrapped();
-		const rng = splitmix32(3735928559);
-		const rndRange = (min, max) => {
-			return rng() * (max - min) + min;
-		};
-		this._symbols = [];
-		const symbolCount = 2e4;
-		for (let i = 0; i < symbolCount; i++) this._symbols.push({
-			collisionBox: {
-				anchorPointX: rndRange(4, 8188),
-				anchorPointY: rndRange(4, 8188),
-				x1: rndRange(-20, -2),
-				y1: rndRange(-20, -2),
-				x2: rndRange(2, 20),
-				y2: rndRange(2, 20)
-			},
-			overlapMode: "never",
-			textPixelRatio: 1,
-			tileID,
-			unwrappedTileID,
-			pitchWithMap: rng() > .5,
-			rotateWithMap: rng() > .5,
-			translation: [rndRange(-20, 20), rndRange(-20, 20)],
-			shift: rng() > .5 ? new Point(rndRange(-20, 20), rndRange(-20, 20)) : void 0,
-			simpleProjectionMatrix: calculatePosMatrix(unwrappedTileID)
-		});
-	}
-	async bench() {
-		const ci = new CollisionIndex(this._transform);
-		ci.grid.hitTest = (_x1, _y1, _x2, _y2, _overlapMode, _predicate) => {
-			return true;
-		};
-		for (const s of this._symbols) ci.placeCollisionBox(s.collisionBox, s.overlapMode, s.textPixelRatio, s.tileID, s.unwrappedTileID, s.pitchWithMap, s.rotateWithMap, s.translation, null, null, s.shift, s.simpleProjectionMatrix);
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/cross_tile_symbol_index.ts
-const styleLayer = { id: "test" };
-const SYMBOL_COUNT = 3e3;
-const makeSymbolInstance = (x, y, key, crossTileID = 0) => {
-	return {
-		anchorX: x,
-		anchorY: y,
-		key,
-		crossTileID
-	};
-};
-const makeTile = (tileID, symbolInstances) => {
-	const bucket = {
-		symbolInstances: {
-			get(i) {
-				return symbolInstances[i];
-			},
-			length: symbolInstances.length
-		},
-		layerIds: ["test"]
-	};
-	return {
-		tileID,
-		getBucket: () => bucket,
-		latestFeatureIndex: {}
-	};
-};
-/**
-* Benchmarks CrossTileSymbolIndex.addLayer with 3000 symbols that have
-* pre-assigned crossTileIDs — simulating features with IDs (via promoteId
-* or generateId). All symbols share the same key and coordinates, which is
-* the pathological case for coordinate-based findMatches.
-*/
-var CrossTileSymbolIndexBench = class extends Benchmark {
-	async setup() {
-		const mainID = new OverscaledTileID(6, 0, 6, 8, 8);
-		const childID = new OverscaledTileID(7, 0, 7, 16, 16);
-		const mainInstances = [];
-		const childInstances = [];
-		for (let i = 0; i < SYMBOL_COUNT; i++) {
-			mainInstances.push(makeSymbolInstance(0, 0, "", i + 1));
-			childInstances.push(makeSymbolInstance(0, 0, "", i + 1));
-		}
-		this._mainTile = makeTile(mainID, mainInstances);
-		this._childTile = makeTile(childID, childInstances);
-	}
-	bench() {
-		const index = new CrossTileSymbolIndex();
-		index.addLayer(styleLayer, [this._mainTile], 0);
-		index.addLayer(styleLayer, [this._childTile], 0);
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/subdivide.ts
-var Subdivide = class extends Benchmark {
-	async setup() {
-		await super.setup();
-		this.granularity = 64;
-		this.tileID = new CanonicalTileID(2, 1, 1);
-		const polygon = [];
-		polygon.push(generateRing(EXTENT / 2, EXTENT / 2, EXTENT * 1.1 / 2, 891));
-		function generateHole(cx, cy, r, vertexCount) {
-			polygon.push(generateRing(cx * EXTENT, cy * EXTENT, r * EXTENT, vertexCount));
-		}
-		generateHole(.25, .5, .15, 176);
-		generateHole(.75, .5, .15, 22);
-		generateHole(.5, .1, .05, 44);
-		this.polygon = polygon;
-	}
-	bench() {
-		for (let i = 0; i < 10; i++) subdividePolygon(this.polygon, this.tileID, this.granularity, true);
-	}
-};
-function generateRing(cx, cy, radius, vertexCount) {
-	const ring = [];
-	for (let i = 0; i < vertexCount; i++) {
-		const angle = i / vertexCount * 2 * Math.PI;
-		ring.push(new Point(Math.round(cx + Math.cos(angle) * radius), Math.round(cy + Math.sin(angle) * radius)));
-	}
-	return ring;
-}
-//#endregion
-//#region test/bench/benchmarks/feature_index.ts
-var LoadMatchingFeature = class extends Benchmark {
-	async setup() {
-		await super.setup();
-		const numLayersToAdd = 100;
-		const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
-		this.featureIndex = new FeatureIndex(tileID);
-		const layerIds = Array.from({ length: numLayersToAdd }, (_, i) => `layer-${i}`);
-		this.layerIdsToTest = new Set(Array.from({ length: numLayersToAdd }, (_, i) => `non-existing-layer-${i}`));
-		this.featureIndex.bucketLayerIDs = [layerIds];
-		this.featureIndex.vtLayers = {};
-		this.featureIndex.vtLayers["0"] = { feature: () => ({}) };
-	}
-	bench() {
-		this.featureIndex.loadMatchingFeature({}, 0, 0, 0, { needGeometry: false }, this.layerIdsToTest, [], {}, {});
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/covering_tiles_globe.ts
-var CoveringTilesGlobe = class extends Benchmark {
-	constructor(pitch) {
-		super();
-		this._pitch = pitch;
-	}
-	bench() {
-		const transform = new GlobeTransform();
-		transform.setCenter(new LngLat(0, 0));
-		transform.setZoom(4);
-		transform.resize(4096, 4096);
-		transform.setMaxPitch(this._pitch);
-		transform.setPitch(this._pitch);
-		for (let i = 0; i < 40; i++) {
-			transform.setCenter(new LngLat(i * .2, 0));
-			coveringTiles(transform, { tileSize: 256 });
-		}
-	}
-};
-//#endregion
-//#region test/bench/benchmarks/covering_tiles_mercator.ts
-var CoveringTilesMercator = class extends Benchmark {
-	constructor(pitch) {
-		super();
-		this._pitch = pitch;
-	}
-	bench() {
-		const transform = new MercatorTransform();
-		transform.setCenter(new LngLat(0, 0));
-		transform.setZoom(4);
-		transform.resize(4096, 4096);
-		transform.setMaxPitch(this._pitch);
-		transform.setPitch(this._pitch);
-		for (let i = 0; i < 40; i++) {
-			transform.setCenter(new LngLat(i * .2, 0));
-			coveringTiles(transform, { tileSize: 256 });
-		}
-	}
-};
-//#endregion
 //#region test/bench/benchmarks/geojson_source_update_data.ts
 var GeoJSONSourceUpdateData = class extends Benchmark {
 	async setup() {
@@ -61236,7 +59325,7 @@ var RoundPolygonCorners = class extends Benchmark {
 const styleLocations = locationsWithTileID(features).filter((v) => v.zoom < 15);
 window.maplibreglBenchmarks = window.maplibreglBenchmarks || {};
 setWorkerUrl(new URL("./benchmarks_worker.mjs", import.meta.url).toString());
-const version = new URL(import.meta.url).origin === location.origin ? `main f950bf6 (local)` : "main f950bf6";
+const version = new URL(import.meta.url).origin === location.origin ? `main 871bb78 (local)` : "main 871bb78";
 function register(name, bench) {
 	window.maplibreglBenchmarks[name] = window.maplibreglBenchmarks[name] || {};
 	window.maplibreglBenchmarks[name][version] = bench;
@@ -61261,12 +59350,6 @@ register("GeoJSONSourceUpdateData", new GeoJSONSourceUpdateData());
 register("GeoJSONSourceSetData", new GeoJSONSourceSetData());
 register("Layout", new Layout(style));
 register("Placement", new Paint$1(style, locations));
-register("Validate", new StyleValidate(style));
-register("StyleLayerCreate", new StyleLayerCreate(style));
-register("FunctionCreate", new FunctionCreate(style));
-register("FunctionEvaluate", new FunctionEvaluate(style));
-register("ExpressionCreate", new ExpressionCreate(style));
-register("ExpressionEvaluate", new ExpressionEvaluate(style));
 register("WorkerTransfer", new WorkerTransfer(style));
 register("PaintStates", new PaintStates(center));
 register("PropertyLevelRemove", new PropertyLevelRemove(center));
@@ -61289,22 +59372,11 @@ register("LayerSymbolWithIcons", new LayerSymbolWithIcons());
 register("LayerTextWithVariableAnchor", new LayerTextWithVariableAnchor());
 register("LayerSymbolWithSortKey", new LayerSymbolWithSortKey());
 register("Load", new MapLoad());
-register("LoadMatchingFeature", new LoadMatchingFeature());
 register("SymbolLayout", new SymbolLayout(style, styleLocations.map((location) => location.tileID[0])));
-register("FilterCreate", new FilterCreate());
-register("FilterEvaluate", new FilterEvaluate());
 register("HillshadeLoad", new HillshadeLoad());
 register("ColorReliefLoad", new ColorReliefLoad());
 register("CustomLayer", new CustomLayer());
 register("MapIdle", new MapIdle());
-register("SymbolCollisionBox", new SymbolCollisionBox(false));
-register("SymbolCollisionBoxGlobe", new SymbolCollisionBox(true));
-register("CrossTileSymbolIndex", new CrossTileSymbolIndexBench());
-register("Subdivide", new Subdivide());
-register("CoveringTilesGlobe", new CoveringTilesGlobe(0));
-register("CoveringTilesGlobePitched", new CoveringTilesGlobe(60));
-register("CoveringTilesMercator", new CoveringTilesMercator(0));
-register("CoveringTilesMercatorPitched", new CoveringTilesMercator(60));
 register("Terrain3DGlobe", new Terrain3DGlobe());
 register("Terrain3DMercator", new Terrain3DMercator());
 register("Terrain2DGlobe", new Terrain2DGlobe());
