@@ -1,5 +1,5 @@
 import {LngLatBounds, type LngLatBoundsLike} from '../geo/lng_lat_bounds.ts';
-import {mercatorXfromLng, mercatorYfromLat} from '../geo/mercator_coordinate.ts';
+import {mercatorWorldCoordinates, type WorldCoordinateHelper} from '../geo/projection/world_coordinate_helper.ts';
 
 import type {CanonicalTileID} from './tile_id.ts';
 
@@ -7,11 +7,13 @@ export class TileBounds {
     bounds: LngLatBounds;
     minzoom: number;
     maxzoom: number;
+    private _worldCoordinateHelper: WorldCoordinateHelper;
 
-    constructor(bounds: [number, number, number, number], minzoom?: number | null, maxzoom?: number | null) {
+    constructor(bounds: [number, number, number, number], minzoom?: number | null, maxzoom?: number | null, worldCoordinateHelper: WorldCoordinateHelper = mercatorWorldCoordinates) {
         this.bounds = LngLatBounds.convert(this.validateBounds(bounds));
         this.minzoom = minzoom || 0;
         this.maxzoom = maxzoom || 24;
+        this._worldCoordinateHelper = worldCoordinateHelper;
     }
 
     validateBounds(bounds: [number, number, number, number]): LngLatBoundsLike {
@@ -21,12 +23,13 @@ export class TileBounds {
     }
 
     contains(tileID: CanonicalTileID): boolean {
+        const wc = this._worldCoordinateHelper;
         const worldSize = Math.pow(2, tileID.z);
         const level = {
-            minX: Math.floor(mercatorXfromLng(this.bounds.getWest()) * worldSize),
-            minY: Math.floor(mercatorYfromLat(this.bounds.getNorth()) * worldSize),
-            maxX: Math.ceil(mercatorXfromLng(this.bounds.getEast()) * worldSize),
-            maxY: Math.ceil(mercatorYfromLat(this.bounds.getSouth()) * worldSize)
+            minX: Math.floor(wc.worldXfromLng(this.bounds.getWest()) * worldSize),
+            minY: Math.floor(wc.worldYfromLat(this.bounds.getNorth()) * worldSize),
+            maxX: Math.ceil(wc.worldXfromLng(this.bounds.getEast()) * worldSize),
+            maxY: Math.ceil(wc.worldYfromLat(this.bounds.getSouth()) * worldSize)
         };
         return tileID.x >= level.minX && tileID.x < level.maxX && tileID.y >= level.minY && tileID.y < level.maxY;
     }
