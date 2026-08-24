@@ -12,6 +12,7 @@ import {type Context} from '../../webgl/context.ts';
 import {type CanonicalTileID} from '../../tile/tile_id.ts';
 import {type Mesh} from '../../render/mesh.ts';
 import {mercatorWorldCoordinates, type WorldCoordinateHelper} from './world_coordinate_helper.ts';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 export class GlobeProjection extends Evented implements Projection {
     properties: PossiblyEvaluated<ProjectionProps, ProjectionPropsPossiblyEvaluated>;
@@ -95,6 +96,10 @@ export class GlobeProjection extends Evented implements Projection {
 
     get worldCoordinateHelper(): WorldCoordinateHelper {
         return mercatorWorldCoordinates;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return mercatorTileMatrix;
     }
 
     get useGlobeControls(): boolean {

@@ -10,6 +10,7 @@ import posAttributes from '../../data/pos_attributes.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import {mercatorWorldCoordinates, type WorldCoordinateHelper} from './world_coordinate_helper.ts';
 import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 export const MercatorShaderDefine = '#define PROJECTION_MERCATOR';
 export const MercatorShaderVariantKey = 'mercator';
@@ -52,6 +53,10 @@ export class MercatorProjection implements Projection {
 
     get worldCoordinateHelper(): WorldCoordinateHelper {
         return mercatorWorldCoordinates;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return mercatorTileMatrix;
     }
 
     get useGlobeControls(): boolean {

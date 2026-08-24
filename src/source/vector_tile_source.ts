@@ -13,6 +13,7 @@ import type {OverscaledTileID} from '../tile/tile_id.ts';
 import type {Map} from '../ui/map.ts';
 import type {Dispatcher} from '../util/dispatcher.ts';
 import type {Tile} from '../tile/tile.ts';
+import type {Projection} from '../geo/projection/projection.ts';
 import type {VectorSourceSpecification, PromoteIdSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {WorkerTileParameters, OverzoomParameters, WorkerTileResult, TileEncoding} from './worker_source.ts';
 
@@ -122,7 +123,7 @@ export class VectorTileSource extends Evented<SourceEventType> implements Source
             this._loaded = true;
             if (tileJSON) {
                 extend(this, tileJSON);
-                if (tileJSON.bounds) this.tileBounds = new TileBounds(tileJSON.bounds, this.minzoom, this.maxzoom, this.map.style.projection.worldCoordinateHelper);
+                if (tileJSON.bounds) this.tileBounds = new TileBounds(tileJSON.bounds, this.minzoom, this.maxzoom, this._projection.worldCoordinateHelper);
 
                 // `content` is included here to prevent a race condition where `Style._updateSources` is called
                 // before the TileJSON arrives. this makes sure the tiles needed are loaded once TileJSON arrives
@@ -147,6 +148,10 @@ export class VectorTileSource extends Evented<SourceEventType> implements Source
 
     hasTile(tileID: OverscaledTileID): boolean {
         return !this.tileBounds || this.tileBounds.contains(tileID.canonical);
+    }
+
+    protected get _projection(): Projection {
+        return this.map.style.projection;
     }
 
     onAdd(map: Map): void {
@@ -203,7 +208,7 @@ export class VectorTileSource extends Evented<SourceEventType> implements Source
     }
 
     async loadTile(tile: Tile): Promise<LoadTileResult | void> {
-        const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme);
+        const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme, this._projection.tileMatrix);
         const params: WorkerTileParameters = {
             request: await this.map._requestManager.transformRequest(url, ResourceType.Tile),
             uid: tile.uid,
@@ -269,7 +274,7 @@ export class VectorTileSource extends Evented<SourceEventType> implements Source
             return undefined;
         }
         const maxZoomTileID = tile.tileID.scaledTo(this.maxzoom).canonical;
-        const maxZoomTileUrl = maxZoomTileID.url(this.tiles, this.map.getPixelRatio(), this.scheme);
+        const maxZoomTileUrl = maxZoomTileID.url(this.tiles, this.map.getPixelRatio(), this.scheme, this._projection.tileMatrix);
 
         return {
             maxZoomTileID,

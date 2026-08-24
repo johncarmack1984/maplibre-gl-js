@@ -6,6 +6,7 @@ import type {SubdivisionGranularitySetting} from '../../render/subdivision_granu
 import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 import type {WorldCoordinateHelper} from './world_coordinate_helper.ts';
+import type {TileMatrix} from './tile_matrix.ts';
 
 /**
  * Custom projections are handled both by a class which implements this `Projection` interface,
@@ -122,6 +123,14 @@ export interface Projection {
      * World coordinates are in the 0..1 square that the tile quad-tree subdivides.
      */
     get worldCoordinateHelper(): WorldCoordinateHelper;
+
+    /**
+     * @internal
+     * The quad tile grid this projection's tiles are addressed in, in CRS units: EPSG:3857 meters
+     * for mercator, globe, and vertical-perspective, the registered CRS's own grid for a planar CRS.
+     * Used to expand the `{bbox}` tile URL token.
+     */
+    get tileMatrix(): TileMatrix;
 
     /**
      * @internal

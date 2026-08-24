@@ -4,6 +4,7 @@ import {RasterDEMTileSource} from './raster_dem_tile_source.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {RequestManager} from '../util/request_manager.ts';
 import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
+import {mercatorTileMatrix} from '../geo/projection/tile_matrix.ts';
 import {ImageRequest} from '../util/image_request.ts';
 import {type Tile} from '../tile/tile.ts';
 import {getMockDispatcher} from '../util/test/util.ts';
@@ -17,7 +18,7 @@ function createSource(options, transformCallback?) {
         _getMapId: () => 1,
         _requestManager: new RequestManager(transformCallback),
         getPixelRatio() { return 1; },
-        style: {projection: {worldCoordinateHelper: mercatorWorldCoordinates}}
+        style: {projection: {worldCoordinateHelper: mercatorWorldCoordinates, tileMatrix: mercatorTileMatrix}}
     } as any);
 
     source.on('error', (e) => {

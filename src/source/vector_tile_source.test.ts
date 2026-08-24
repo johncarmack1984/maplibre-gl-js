@@ -17,6 +17,7 @@ import {type ActorMessage, MessageType} from '../util/actor_messages.ts';
 import {type MapSourceDataEvent} from '../ui/events.ts';
 import {PlanarProjection, simpleCrs} from '../geo/projection/planar_projection.ts';
 import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
+import {mercatorTileMatrix} from '../geo/projection/tile_matrix.ts';
 
 class StubbedEvented extends Evented {}
 
@@ -32,7 +33,8 @@ function createSource(options, transformCallback?, clearTiles = () => {}) {
                 get subdivisionGranularity() {
                     return SubdivisionGranularitySetting.noSubdivision;
                 },
-                worldCoordinateHelper: mercatorWorldCoordinates
+                worldCoordinateHelper: mercatorWorldCoordinates,
+                tileMatrix: mercatorTileMatrix
             }
         },
         getGlobalState: () => ({}),
@@ -394,6 +396,31 @@ describe('VectorTileSource', () => {
         // In the simple CRS lat 45..80 is world y 0.056..0.25: rows 0 and 1 at zoom 3. Mercator would include row 2.
         expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, 1))).toBeTruthy();
         expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, 2))).toBeFalsy();
+    });
+
+    test('expands {bbox} in the map projection\'s tile matrix', async () => {
+        const source = createSource({
+            minzoom: 0,
+            maxzoom: 22,
+            tiles: ['http://example.com/?bbox={bbox}'],
+        });
+        (source.map.style.projection as any).tileMatrix = new PlanarProjection(simpleCrs).tileMatrix;
+
+        let receivedMessage: ActorMessage<MessageType> = null;
+        source.dispatcher = getWrapDispatcher()({
+            sendAsync(message) {
+                receivedMessage = message;
+                return Promise.resolve({});
+            }
+        });
+
+        await waitForMetadataEvent(source);
+        await source.loadTile({
+            loadVectorData() {},
+            tileID: new OverscaledTileID(1, 0, 1, 1, 0)
+        } as any as Tile);
+
+        expect((receivedMessage.data as WorkerTileParameters).request.url).toBe('http://example.com/?bbox=0,0,90,90');
     });
 
     test('respects TileJSON.bounds when loaded from TileJSON', async () => {

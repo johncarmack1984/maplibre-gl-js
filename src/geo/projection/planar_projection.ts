@@ -2,6 +2,7 @@ import {LngLat} from '../lng_lat.ts';
 import {MercatorProjection} from './mercator_projection.ts';
 import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {WorldCoordinateHelper} from './world_coordinate_helper.ts';
+import type {TileMatrix} from './tile_matrix.ts';
 
 /**
  * Describes a planar coordinate reference system (CRS) together with the square, power-of-two
@@ -31,16 +32,7 @@ export type CrsDefinition = {
     /**
      * The quad tile matrix set over the CRS plane.
      */
-    tileMatrix: {
-        /**
-         * CRS coordinates of the top-left corner of tile 0/0/0 (min x, max y).
-         */
-        origin: [number, number];
-        /**
-         * Width (= height) of tile 0/0/0 in CRS units.
-         */
-        extentAtZoom0: number;
-    };
+    tileMatrix: TileMatrix;
     /**
      * CRS units to meters. Default 1. Converts altitudes and elevations given in meters to world units and
      * the camera distance to a zoom level, so a CRS in feet or degrees still takes meters at its API.
@@ -112,11 +104,13 @@ export const simpleCrs: CrsDefinition = {
 export class PlanarProjection extends MercatorProjection {
     private readonly _name: string;
     private readonly _worldCoordinateHelper: WorldCoordinateHelper;
+    private readonly _tileMatrix: TileMatrix;
 
     constructor(definition: CrsDefinition) {
         super();
         this._name = definition.name;
         this._worldCoordinateHelper = crsWorldCoordinates(definition);
+        this._tileMatrix = definition.tileMatrix;
     }
 
     override get name(): ProjectionSpecification['type'] {
@@ -125,5 +119,9 @@ export class PlanarProjection extends MercatorProjection {
 
     override get worldCoordinateHelper(): WorldCoordinateHelper {
         return this._worldCoordinateHelper;
+    }
+
+    override get tileMatrix(): TileMatrix {
+        return this._tileMatrix;
     }
 }

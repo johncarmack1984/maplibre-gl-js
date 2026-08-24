@@ -1,0 +1,32 @@
+// This module has no projection or shader imports so the worker bundle can address tiles without them.
+
+/**
+ * A square, power-of-two quad tile grid laid over a planar CRS: tile 0/0/0 is the square of side
+ * `extentAtZoom0` whose top-left corner is `origin`, and every zoom level splits each tile in four.
+ *
+ * @group Geography and Geometry
+ */
+export type TileMatrix = {
+    /**
+     * CRS coordinates of the top-left corner of tile 0/0/0 (min x, max y); x and y are in the order
+     * `CrsDefinition.project` returns (easting, northing for a projected CRS).
+     */
+    origin: [number, number];
+    /**
+     * Width (= height) of tile 0/0/0 in CRS units.
+     */
+    extentAtZoom0: number;
+};
+
+/** WGS84 spherical radius used by EPSG:3857, distinct from the mean earth radius MercatorCoordinate is built on. */
+const EPSG3857_RADIUS = 6378137;
+
+/**
+ * @internal
+ * The EPSG:3857 tile matrix in meters, shared by the mercator, globe, and vertical-perspective
+ * projections: tile 0/0/0 spans half the circumference in every direction from the origin.
+ */
+export const mercatorTileMatrix: TileMatrix = {
+    origin: [-Math.PI * EPSG3857_RADIUS, Math.PI * EPSG3857_RADIUS],
+    extentAtZoom0: 2 * Math.PI * EPSG3857_RADIUS,
+};

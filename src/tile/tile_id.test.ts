@@ -50,6 +50,16 @@ describe('CanonicalTileID', () => {
         expect(new CanonicalTileID(1, 0, 0).url(['bbox={bbox-epsg-3857}'], 1)).toBe('bbox=-20037508.342789244,0,0,20037508.342789244');
     });
 
+    test('.url replaces {bbox} with the tile bounds in a custom tile matrix', () => {
+        // tile 0/0/0 spans -90..90 on both axes, so tile 1/1/0 is the top-right quadrant
+        const tileMatrix = {origin: [-90, 90] as [number, number], extentAtZoom0: 180};
+        expect(new CanonicalTileID(1, 1, 0).url(['bbox={bbox}'], 1, null, tileMatrix)).toBe('bbox=0,0,90,90');
+        expect(new CanonicalTileID(1, 0, 1).url(['bbox={bbox}'], 1, null, tileMatrix)).toBe('bbox=-90,-90,0,0');
+        expect(new CanonicalTileID(2, 3, 3).url(['bbox={bbox}'], 1, null, tileMatrix)).toBe('bbox=45,-90,90,-45');
+        // the tms scheme flips {y} only; {bbox} describes the tile the ID names
+        expect(new CanonicalTileID(1, 1, 0).url(['{y}:{bbox}'], 1, 'tms', tileMatrix)).toBe('1:0,0,90,90');
+    });
+
     test('.url replaces {ratio}', () => {
         expect(new CanonicalTileID(1, 0, 0).url(['r={ratio}'], 2)).toBe('r=@2x');
         expect(new CanonicalTileID(1, 0, 0).url(['r={ratio}'], 1)).toBe('r=');

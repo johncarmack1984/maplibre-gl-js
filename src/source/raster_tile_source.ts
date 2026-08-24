@@ -15,6 +15,7 @@ import type {OverscaledTileID} from '../tile/tile_id.ts';
 import type {Map} from '../ui/map.ts';
 import type {Dispatcher} from '../util/dispatcher.ts';
 import type {Tile} from '../tile/tile.ts';
+import type {Projection} from '../geo/projection/projection.ts';
 import type {
     RasterSourceSpecification,
     RasterDEMSourceSpecification
@@ -124,6 +125,10 @@ export class RasterTileSource extends Evented<SourceEventType> implements Source
         return this._loaded;
     }
 
+    protected get _projection(): Projection {
+        return this.map.style.projection;
+    }
+
     onAdd(map: Map): void {
         this.map = map;
         this.load();
@@ -203,7 +208,7 @@ export class RasterTileSource extends Evented<SourceEventType> implements Source
     }
 
     async loadTile(tile: Tile): Promise<void> {
-        const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme);
+        const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme, this._projection.tileMatrix);
         const premultiply = this._premultiplyAlpha;
         const imageBitmapOptions = premultiply ? undefined : {premultiplyAlpha: 'none'} as const;
         tile.abortController = new AbortController();
