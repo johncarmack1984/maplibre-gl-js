@@ -9,6 +9,7 @@ import {SegmentVector} from '../../data/segment.ts';
 import posAttributes from '../../data/pos_attributes.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import {mercatorWorldCoordinates, type WorldCoordinateHelper} from './world_coordinate_helper.ts';
+import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 
 export const MercatorShaderDefine = '#define PROJECTION_MERCATOR';
 export const MercatorShaderVariantKey = 'mercator';
@@ -16,7 +17,7 @@ export const MercatorShaderVariantKey = 'mercator';
 export class MercatorProjection implements Projection {
     private _cachedMesh: Mesh = null;
 
-    get name(): 'mercator' {
+    get name(): ProjectionSpecification['type'] {
         return 'mercator';
     }
 
@@ -43,6 +44,10 @@ export class MercatorProjection implements Projection {
 
     get subdivisionGranularity(): SubdivisionGranularitySetting {
         return SubdivisionGranularitySetting.noSubdivision;
+    }
+
+    get isPlanar(): boolean {
+        return true;
     }
 
     get worldCoordinateHelper(): WorldCoordinateHelper {

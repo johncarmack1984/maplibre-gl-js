@@ -89,6 +89,10 @@ export class GlobeProjection extends Evented implements Projection {
         return this.currentProjection.subdivisionGranularity;
     }
 
+    get isPlanar(): boolean {
+        return false;
+    }
+
     get worldCoordinateHelper(): WorldCoordinateHelper {
         return mercatorWorldCoordinates;
     }

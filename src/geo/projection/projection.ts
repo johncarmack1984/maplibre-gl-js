@@ -110,6 +110,14 @@ export interface Projection {
 
     /**
      * @internal
+     * True when the projection renders onto a flat plane (mercator and planar CRSs),
+     * false for globe and vertical-perspective. Used instead of name-checking `'mercator'`
+     * so any planar projection takes the same fast paths.
+     */
+    get isPlanar(): boolean;
+
+    /**
+     * @internal
      * The lng/lat to world-coordinate mapping of this projection.
      * World coordinates are in the 0..1 square that the tile quad-tree subdivides.
      */

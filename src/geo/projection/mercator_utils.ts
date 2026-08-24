@@ -44,11 +44,11 @@ export function tileCoordinatesToLocation(inTileX: number, inTileY: number, cano
  * Convert from LngLat to world coordinates (the projection's 0..1 world square scaled by world size).
  * @param worldSize - World size computed from zoom level and tile size.
  * @param lnglat - The location to convert.
- * @param helper - The lng/lat to world mapping; mercator clamps latitude to the valid mercator range.
+ * @param helper - The lng/lat to world mapping; latitude is clamped to the valid mercator range only for a wrapping (mercator) helper.
  * @returns Point
  */
 export function projectToWorldCoordinates(worldSize: number, lnglat: LngLat, helper: WorldCoordinateHelper): Point {
-    const lat = clamp(lnglat.lat, -MAX_VALID_LATITUDE, MAX_VALID_LATITUDE);
+    const lat = helper.wraps ? clamp(lnglat.lat, -MAX_VALID_LATITUDE, MAX_VALID_LATITUDE) : lnglat.lat;
     const {x, y} = helper.worldFromLngLat(lnglat.lng, lat);
     return new Point(x * worldSize, y * worldSize);
 }

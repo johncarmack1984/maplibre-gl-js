@@ -218,7 +218,7 @@ export class TransformHelper implements ITransformGetters {
         this._maxZoom = thatI.maxZoom;
         this._minPitch = thatI.minPitch;
         this._maxPitch = thatI.maxPitch;
-        this._renderWorldCopies = thatI.renderWorldCopies;
+        this._renderWorldCopies = thatI.renderWorldCopiesSetting;
         this._cameraToCenterDistance = thatI.cameraToCenterDistance;
         this._nearZ = thatI.nearZ;
         this._farZ = thatI.farZ;
@@ -298,7 +298,12 @@ export class TransformHelper implements ITransformGetters {
         this._unmodified = unmodified;
     }
 
-    get renderWorldCopies(): boolean { return this._renderWorldCopies; }
+    /**
+     * World copies only exist for a wrapping world, so a non-wrapping planar projection always reads as `false`
+     * regardless of what was set; {@link renderWorldCopiesSetting} keeps the setting itself.
+     */
+    get renderWorldCopies(): boolean { return this._renderWorldCopies && this._worldCoordinateHelper.wraps; }
+    get renderWorldCopiesSetting(): boolean { return this._renderWorldCopies; }
     setRenderWorldCopies(renderWorldCopies: boolean): void {
         if (renderWorldCopies === undefined) {
             renderWorldCopies = true;
@@ -515,9 +520,13 @@ export class TransformHelper implements ITransformGetters {
             this._lngRange = [bounds.getWest(), bounds.getEast()];
             this._latRange = [bounds.getSouth(), bounds.getNorth()];
             this.constrainInternal();
+        } else if (this._worldCoordinateHelper.defaultLngLatBounds) {
+            const [west, south, east, north] = this._worldCoordinateHelper.defaultLngLatBounds;
+            this._lngRange = [west, east];
+            this._latRange = [south, north];
         } else {
             this._lngRange = null;
-            this._latRange = [-MAX_VALID_LATITUDE, MAX_VALID_LATITUDE];
+            this._latRange = this._worldCoordinateHelper.wraps ? [-MAX_VALID_LATITUDE, MAX_VALID_LATITUDE] : null;
         }
     }
 

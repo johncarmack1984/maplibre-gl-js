@@ -61,6 +61,10 @@ export class VerticalPerspectiveProjection implements Projection {
         return granularitySettingsGlobe;
     }
 
+    get isPlanar(): boolean {
+        return false;
+    }
+
     get worldCoordinateHelper(): WorldCoordinateHelper {
         return mercatorWorldCoordinates;
     }

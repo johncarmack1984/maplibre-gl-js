@@ -1,10 +1,21 @@
 import {DOM} from '../../util/dom.ts';
+import {getRegisteredProjection} from '../../geo/projection/projection_crud.ts';
 
 import type {Map} from '../map.ts';
+import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {IControl} from './control.ts';
 
 /**
- * A `GlobeControl` control contains a button for toggling the map projection between "mercator" and "globe".
+ * The projections the control toggles to globe from and remembers to come back to: mercator, an unset
+ * projection, or a CRS registered with {@link addProjection}. Anything else toggles back to the remembered one.
+ */
+function isFlatProjection(projectionType: ProjectionSpecification['type'] | undefined): boolean {
+    return !projectionType || projectionType === 'mercator' || getRegisteredProjection(projectionType) !== undefined;
+}
+
+/**
+ * A `GlobeControl` control contains a button for toggling the map projection between the flat projection the map
+ * was in (mercator or one registered with {@link addProjection}) and globe.
  *
  * @group Markers and Controls
  *
@@ -21,6 +32,7 @@ export class GlobeControl implements IControl {
     _map: Map;
     _container: HTMLElement;
     _globeButton: HTMLButtonElement;
+    _planarProjectionType: ProjectionSpecification['type'] = 'mercator';
 
     /** {@inheritDoc IControl.onAdd} */
     onAdd(map: Map): HTMLElement {
@@ -47,11 +59,10 @@ export class GlobeControl implements IControl {
     }
 
     _toggleProjection = (): void => {
-        const currentProjection = this._map.getProjection()?.type;
-        if (currentProjection === 'mercator' || !currentProjection) {
+        if (isFlatProjection(this._map.getProjection()?.type)) {
             this._map.setProjection({type: 'globe'});
         } else {
-            this._map.setProjection({type: 'mercator'});
+            this._map.setProjection({type: this._planarProjectionType});
         }
         this._updateGlobeIcon();
     };
@@ -59,7 +70,11 @@ export class GlobeControl implements IControl {
     _updateGlobeIcon = (): void => {
         this._globeButton.classList.remove('maplibregl-ctrl-globe');
         this._globeButton.classList.remove('maplibregl-ctrl-globe-enabled');
-        if (this._map.getProjection()?.type === 'globe') {
+        const projectionType = this._map.getProjection()?.type;
+        if (isFlatProjection(projectionType)) {
+            this._planarProjectionType = projectionType ?? 'mercator';
+        }
+        if (projectionType === 'globe') {
             this._globeButton.classList.add('maplibregl-ctrl-globe-enabled');
             this._globeButton.title = this._map._getUIString('GlobeControl.Disable');
         } else {

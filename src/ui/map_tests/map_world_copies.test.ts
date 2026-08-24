@@ -102,3 +102,26 @@ describe('renderWorldCopies', () => {
         expect(map.getCenter().lng).toBeCloseTo(80, 0);
     });
 });
+
+describe('renderWorldCopies with a registered planar projection', () => {
+    test('reads false while the projection is active and ignores attempts to enable it', async () => {
+        const map = createMap({renderWorldCopies: true});
+        await map.once('style.load');
+
+        map.setProjection({type: 'simple'});
+        expect(map.getRenderWorldCopies()).toBe(false);
+
+        map.setRenderWorldCopies(true);
+        expect(map.getRenderWorldCopies()).toBe(false);
+    });
+
+    test.each([true, false])('keeps renderWorldCopies %s across a round trip through simple and back to mercator', async (renderWorldCopies) => {
+        const map = createMap({renderWorldCopies});
+        await map.once('style.load');
+
+        map.setProjection({type: 'simple'});
+        map.setProjection({type: 'mercator'});
+
+        expect(map.getRenderWorldCopies()).toBe(renderWorldCopies);
+    });
+});

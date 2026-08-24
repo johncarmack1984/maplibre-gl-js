@@ -29,6 +29,15 @@ export type WorldCoordinateHelper = {
      * Altitude in meters to world z at a location (mercator: `mercatorZfromAltitude(altitude, lat)`; planar: constant scale, argument ignored).
      */
     worldZFromAltitude(altitude: number, lngLat: LngLat): number;
+    /**
+     * lng/lat bounds `[west, south, east, north]` the camera is constrained to when no `maxBounds`
+     * are set. Mercator: `null`, which keeps the longitude wrap plus the `MAX_VALID_LATITUDE` clamp.
+     */
+    defaultLngLatBounds: [number, number, number, number] | null;
+    /**
+     * True for mercator only. Drives world copies, longitude wrapping, and the pole/horizon handling.
+     */
+    wraps: boolean;
 };
 
 /**
@@ -50,4 +59,6 @@ export const mercatorWorldCoordinates: WorldCoordinateHelper = {
     worldZFromAltitude(altitude: number, lngLat: LngLat): number {
         return mercatorZfromAltitude(altitude, lngLat.lat);
     },
+    defaultLngLatBounds: null,
+    wraps: true,
 };

@@ -4,6 +4,7 @@ import {LngLat} from '../lng_lat.ts';
 import {coveringTiles, coveringZoomLevel, createCalculateTileZoomFunction, type CoveringTilesOptions} from './covering_tiles.ts';
 import {OverscaledTileID} from '../../tile/tile_id.ts';
 import {MercatorTransform} from './mercator_transform.ts';
+import {PlanarProjection, simpleCrs} from './planar_projection.ts';
 
 describe('coveringTiles', () => {
     describe('globe', () => {
@@ -806,6 +807,67 @@ describe('coveringTiles', () => {
             ]);
         });
     
+    });
+
+    describe('simple', () => {
+        const options = {
+            minzoom: 0,
+            maxzoom: 10,
+            tileSize: 512
+        };
+
+        function createSimpleTransform(width: number, height: number): MercatorTransform {
+            const transform = new MercatorTransform({
+                minZoom: -5,
+                maxZoom: 22,
+                minPitch: 0,
+                maxPitch: 85,
+                renderWorldCopies: true,
+                worldCoordinateHelper: new PlanarProjection(simpleCrs).worldCoordinateHelper,
+            });
+            transform.resize(width, height);
+            return transform;
+        }
+
+        test('covers the root tile at zoom 0 and its four children at zoom 1', () => {
+            const transform = createSimpleTransform(200, 200);
+            transform.setCenter(new LngLat(-0.01, 0.01));
+
+            transform.setZoom(0);
+            expect(coveringTiles(transform, options)).toEqual([new OverscaledTileID(0, 0, 0, 0, 0)]);
+
+            transform.setZoom(1);
+            const tiles = coveringTiles(transform, options);
+            expect(tiles).toHaveLength(4);
+            for (const [x, y] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+                expect(tiles).toContainEqual(new OverscaledTileID(1, 0, 1, x, y));
+            }
+        });
+
+        test('addresses tiles by the CRS grid, not by mercator', () => {
+            // lng/lat 45,45 is world (0.75, 0.25): the top-right quadrant at zoom 1.
+            const transform = createSimpleTransform(200, 200);
+            transform.setCenter(new LngLat(45, 45));
+            transform.setZoom(2.5);
+            const tiles = coveringTiles(transform, options);
+            expect(tiles.map((t) => t.canonical.z)).toEqual(tiles.map(() => 2));
+            for (const [x, y] of [[2, 0], [3, 0], [2, 1], [3, 1]]) {
+                expect(tiles).toContainEqual(new OverscaledTileID(2, 0, 2, x, y));
+            }
+        });
+
+        test('never produces wrapped tiles at the edge of the square', () => {
+            const transform = createSimpleTransform(1024, 200);
+            transform.setCenter(new LngLat(89, 0));
+            transform.setZoom(2);
+            const tiles = coveringTiles(transform, options);
+            expect(tiles.length).toBeGreaterThan(0);
+            for (const tile of tiles) {
+                expect(tile.wrap).toBe(0);
+                expect(tile.canonical.x).toBeGreaterThanOrEqual(0);
+                expect(tile.canonical.x).toBeLessThan(4);
+            }
+        });
     });
 });
 
