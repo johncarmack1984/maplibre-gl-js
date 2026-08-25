@@ -18,7 +18,7 @@ import {Color, type Feature, type LayerSpecification, type GeoJSONSourceSpecific
 import {type GeoJSONSource} from '../source/geojson_source.ts';
 import {StubMap, sleep, waitForEvent} from '../util/test/util.ts';
 import {RTLPluginLoadedEventName} from '../source/rtl_text_plugin_status.ts';
-import {MessageType} from '../util/actor_messages.ts';
+import {type ActorMessage, MessageType} from '../util/actor_messages.ts';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {type Tile} from '../tile/tile.ts';
 import type Point from '@mapbox/point-geometry';
@@ -739,6 +739,26 @@ describe('Style._load', () => {
         style._load(styleSpec, {validate: false});
         expect(style.projection.name).toBe('mercator');
         expect(style.serialize().projection).toBeUndefined();
+    });
+
+    test('a geojson source added on load is sent pre-projected for the style projection', async () => {
+        const style = createStyle();
+        const actors = await style.dispatcher.actorsPromise;
+        const sendAsync = vi.fn((_message: ActorMessage<MessageType>) => Promise.resolve({}));
+        for (const actor of actors) actor.sendAsync = sendAsync;
+        const point: GeoJSON.Feature<GeoJSON.Point> = {type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [45, 45]}};
+        style.loadJSON(createStyleJSON({
+            projection: {type: 'simple'},
+            sources: {geojson: {type: 'geojson', data: point}}
+        }));
+        await style.once('style.load');
+        const loadData = await vi.waitFor(() => {
+            const message = sendAsync.mock.calls.map(call => call[0]).find(message => message.type === MessageType.loadData);
+            expect(message).toBeDefined();
+            return message as ActorMessage<MessageType.loadData>;
+        });
+        // [45, 45] in the simple CRS is world (0.75, 0.25), which mercator reaches from [90, 66.51]
+        expect((loadData.data.data as GeoJSON.Feature<GeoJSON.Point>).geometry.coordinates).toEqual([90, expect.closeTo(66.51326, 4)]);
     });
 });
 

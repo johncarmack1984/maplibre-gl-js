@@ -2,7 +2,7 @@
 ### ✨ Features and improvements
 - Throw `GPUInitializationError` from the `Map` constructor when the WebGL2 context cannot be created, instead of firing an `error` event no listener can catch and returning a partially constructed map ([#8066](https://github.com/maplibre/maplibre-gl-js/issues/8066))
 - Add `addProjection`, `removeProjection` and a built-in `simple` projection for maps in a custom planar CRS with its own quad tile grid ([#168](https://github.com/maplibre/maplibre-gl-js/issues/168), [#5764](https://github.com/maplibre/maplibre-gl-js/issues/5764))
-- Sources, feature queries, terrain and hillshade follow a projection registered with `addProjection` ([#168](https://github.com/maplibre/maplibre-gl-js/issues/168))
+- Sources, GeoJSON data, feature queries, terrain and hillshade follow a projection registered with `addProjection` ([#168](https://github.com/maplibre/maplibre-gl-js/issues/168))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
