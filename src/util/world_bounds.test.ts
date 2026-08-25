@@ -2,6 +2,9 @@ import {describe, test, expect} from 'vitest';
 import {isInBoundsForTileZoomXY, isInBoundsForZoomLngLat} from './world_bounds.ts';
 import {MAX_TILE_ZOOM, MIN_TILE_ZOOM} from './util.ts';
 import {LngLat} from '../geo/lng_lat.ts';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
+import {PlanarProjection} from '../geo/projection/planar_projection.ts';
+import {createRotatedCrs} from './test/util.ts';
 
 describe('isInBoundsForTileZoomXY', () => {
 
@@ -35,26 +38,38 @@ describe('isInBoundsForZoomLngLat', () => {
 
     test('at zoom bounds', () => {
         const lnglat = new LngLat(0, 0);
-        expect(isInBoundsForZoomLngLat(MIN_TILE_ZOOM, lnglat)).toBeTruthy();
-        expect(isInBoundsForZoomLngLat(MIN_TILE_ZOOM - 1, lnglat)).toBeFalsy();
-        expect(isInBoundsForZoomLngLat(MAX_TILE_ZOOM, lnglat)).toBeTruthy();
-        expect(isInBoundsForZoomLngLat(MAX_TILE_ZOOM + 1, lnglat)).toBeFalsy();
+        expect(isInBoundsForZoomLngLat(MIN_TILE_ZOOM, lnglat, mercatorWorldCoordinates)).toBeTruthy();
+        expect(isInBoundsForZoomLngLat(MIN_TILE_ZOOM - 1, lnglat, mercatorWorldCoordinates)).toBeFalsy();
+        expect(isInBoundsForZoomLngLat(MAX_TILE_ZOOM, lnglat, mercatorWorldCoordinates)).toBeTruthy();
+        expect(isInBoundsForZoomLngLat(MAX_TILE_ZOOM + 1, lnglat, mercatorWorldCoordinates)).toBeFalsy();
     });
 
     test('at longitude bounds', () => {
         const z = 0, lat = 0;
-        expect(isInBoundsForZoomLngLat(z, new LngLat(-180, lat))).toBeTruthy();
-        expect(isInBoundsForZoomLngLat(z, new LngLat(-181, lat))).toBeFalsy();
-        expect(isInBoundsForZoomLngLat(z, new LngLat(179, lat))).toBeTruthy();
-        expect(isInBoundsForZoomLngLat(z, new LngLat(180, lat))).toBeFalsy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(-180, lat), mercatorWorldCoordinates)).toBeTruthy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(-181, lat), mercatorWorldCoordinates)).toBeFalsy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(179, lat), mercatorWorldCoordinates)).toBeTruthy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(180, lat), mercatorWorldCoordinates)).toBeFalsy();
     });
 
     test('at latitude bounds', () => {
         const z = 0, lng = 0;
-        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, 85.05))).toBeTruthy();
-        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, 85.06))).toBeFalsy();
-        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, -85.05))).toBeTruthy();
-        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, -85.06))).toBeFalsy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, 85.05), mercatorWorldCoordinates)).toBeTruthy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, 85.06), mercatorWorldCoordinates)).toBeFalsy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, -85.05), mercatorWorldCoordinates)).toBeTruthy();
+        expect(isInBoundsForZoomLngLat(z, new LngLat(lng, -85.06), mercatorWorldCoordinates)).toBeFalsy();
     });
 
+});
+
+describe('isInBoundsForZoomLngLat with a non-cylindrical world coordinate helper', () => {
+    test('follows the helper, not mercator', () => {
+        const rotatedWorldCoordinates = new PlanarProjection(createRotatedCrs()).worldCoordinateHelper;
+        // Beyond the mercator poles but inside the rotated world square.
+        expect(isInBoundsForZoomLngLat(3, new LngLat(0, 89), mercatorWorldCoordinates)).toBe(false);
+        expect(isInBoundsForZoomLngLat(3, new LngLat(0, 89), rotatedWorldCoordinates)).toBe(true);
+        // Inside the mercator world but outside the rotated world square.
+        expect(isInBoundsForZoomLngLat(3, new LngLat(-179, 84), mercatorWorldCoordinates)).toBe(true);
+        expect(isInBoundsForZoomLngLat(3, new LngLat(-179, 84), rotatedWorldCoordinates)).toBe(false);
+    });
 });

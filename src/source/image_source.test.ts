@@ -5,22 +5,26 @@ import {type FakeServer, fakeServer} from 'nise';
 import {beforeMapTest, createMap, sleep, stubAjaxGetImage, waitForEvent} from '../util/test/util.ts';
 import {Tile} from '../tile/tile.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
+import {PlanarProjection, simpleCrs} from '../geo/projection/planar_projection.ts';
+import {mercatorWorldCoordinates, type WorldCoordinateHelper} from '../geo/projection/world_coordinate_helper.ts';
 import type {Texture} from '../webgl/texture.ts';
 import type {ImageSourceSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {MapSourceDataEvent} from '../ui/events.ts';
 import type {Map} from '../ui/map.ts';
 
-function createSource(options) {
+function createSource(options, map: Map) {
     options = extend({
         coordinates: [[0, 0], [1, 0], [1, 1], [0, 1]]
     }, options);
 
-    return new ImageSource('id', options, {} as any, options.eventedParent);
+    const source = new ImageSource('id', options, {} as any, options.eventedParent);
+    source.map = map;
+    return source;
 }
 
 async function createLoadedSourceWithTile(map: Map, server: FakeServer) {
     server.respondImmediately = true;
-    const source = createSource({url: '/image.png', eventedParent: map});
+    const source = createSource({url: '/image.png', eventedParent: map}, map);
     const loaded = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
     source.onAdd(map);
     await loaded;
@@ -41,13 +45,14 @@ describe('ImageSource', () => {
     let server: FakeServer;
     let map: Map;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         beforeMapTest();
         global.fetch = null;
         server = fakeServer.create();
         server.respondWith(new ArrayBuffer(1));
         server.respondWith('/missing-image.png', [404, {}, '']);
-        map = createMap({style: null});
+        map = createMap();
+        await map.once('style.load');
     });
 
     afterEach(() => {
@@ -56,7 +61,7 @@ describe('ImageSource', () => {
     });
 
     test('constructor', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
 
         expect(source.minzoom).toBe(0);
         expect(source.maxzoom).toBe(22);
@@ -64,7 +69,7 @@ describe('ImageSource', () => {
     });
 
     test('fires dataloading event', async () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.on('dataloading', (e) => {
             expect(e.dataType).toBe('source');
         });
@@ -77,7 +82,7 @@ describe('ImageSource', () => {
 
     test('does not request the image when the source is removed while its request is being transformed', async () => {
         server.respondImmediately = true;
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         const errorHandler = vi.fn();
         source.on('error', errorHandler);
         let releaseTransform: (params: {url: string}) => void;
@@ -97,7 +102,7 @@ describe('ImageSource', () => {
 
     test('transforms url request', () => {
         const transformRequest = vi.fn((url: string, _resourceType?: string) => ({url}));
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         map.setTransformRequest(transformRequest);
         source.onAdd(map);
         server.respond();
@@ -107,7 +112,7 @@ describe('ImageSource', () => {
     });
 
     test('can asynchronously transform request', async () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         map.setTransformRequest(async (url) => ({
             url,
             headers: {Authorization: 'Bearer token'}
@@ -123,7 +128,7 @@ describe('ImageSource', () => {
 
     test('updates url from updateImage', () => {
         const transformRequest = vi.fn((url: string, _resourceType?: string) => ({url}));
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         map.setTransformRequest(transformRequest);
         source.onAdd(map);
         server.respond();
@@ -138,7 +143,7 @@ describe('ImageSource', () => {
     });
 
     test('sets coordinates', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.onAdd(map);
         server.respond();
         const beforeSerialized = source.serialize();
@@ -149,7 +154,7 @@ describe('ImageSource', () => {
     });
 
     test('warps an oblique quad projectively', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [-122.52, 37.815],
             [-122.355, 37.8],
@@ -170,7 +175,7 @@ describe('ImageSource', () => {
                 [-122.325, 37.7],
                 [-122.545, 37.735]
             ]
-        });
+        }, map);
         const promise = waitForEvent(source, 'data', (e) => e.sourceDataType === 'content');
 
         source.onAdd(map);
@@ -182,7 +187,7 @@ describe('ImageSource', () => {
     });
 
     test('warps a parallelogram bilinearly, which is also its affine mapping', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [-122.431640625, 37.857507156],
             [-122.409667969, 37.857507156],
@@ -195,7 +200,7 @@ describe('ImageSource', () => {
     });
 
     test('warps four collinear coordinates bilinearly', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [-122.431640625, 37.857507156],
             [-122.409667969, 37.857507156],
@@ -208,7 +213,7 @@ describe('ImageSource', () => {
     });
 
     test('warps a quad with three coordinates on one edge bilinearly', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [-122.431640625, 37.857507156],
             [-122.431640625, 37.840156836],
@@ -221,7 +226,7 @@ describe('ImageSource', () => {
     });
 
     test('warps a self-crossing quad bilinearly', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [96.85546875, 79.36770077764092],
             [-127.265625, 79.36770077764092],
@@ -234,7 +239,7 @@ describe('ImageSource', () => {
     });
 
     test('warps a concave quad bilinearly', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [-90, 66.51326044311186],
             [0, 66.51326044311186],
@@ -247,7 +252,7 @@ describe('ImageSource', () => {
     });
 
     test('raises the blend continuously from zero to fully bilinear as the corner approaches the diagonal between its two neighbours', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         const blends = [-122.545, -122.4245, -122.4237, -122.423, -122.42225].map((bottomLeftLng) => {
             source.setCoordinates([
                 [-122.52, 37.815],
@@ -267,21 +272,21 @@ describe('ImageSource', () => {
     });
 
     test('needs no subdivided mesh for a purely projective warp, whose straight lines survive a pair of triangles', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([[-122.52, 37.815], [-122.355, 37.8], [-122.325, 37.7], [-122.545, 37.735]]);
 
         expect(source.getMesh(map.painter.context, false)).toBeNull();
     });
 
     test('needs a subdivided mesh for a blended warp, which would seam along the diagonal of a pair of triangles', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([[-122.52, 37.815], [-122.355, 37.8], [-122.325, 37.7], [-122.4237, 37.7573]]);
 
         expect(source.getMesh(map.painter.context, false)).not.toBeNull();
     });
 
     test('warps projectively however close the quad gets to a triangle when asked to', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setWarp('perspective');
         source.setCoordinates([
             [-122.52, 37.815],
@@ -295,7 +300,7 @@ describe('ImageSource', () => {
     });
 
     test('warps flat however plain the quad is when asked to', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setWarp('flat');
         source.setCoordinates([
             [-122.52, 37.815],
@@ -309,7 +314,7 @@ describe('ImageSource', () => {
     });
 
     test('warps a parallelogram affinely whichever warp is set', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         const parallelogram: Coordinates = [
             [-122.431640625, 37.857507156],
             [-122.409667969, 37.857507156],
@@ -327,7 +332,7 @@ describe('ImageSource', () => {
     });
 
     test('falls back to a bilinear warp for a concave quad even when asked for perspective', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setWarp('perspective');
         source.setCoordinates([[-90, 66.51326044311186], [0, 66.51326044311186], [-78.75, 61.606396371386275], [-90, 0]]);
 
@@ -335,7 +340,7 @@ describe('ImageSource', () => {
     });
 
     test('re-warps the existing coordinates when the warp changes', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.setCoordinates([
             [-122.52, 37.815],
             [-122.355, 37.8],
@@ -351,7 +356,7 @@ describe('ImageSource', () => {
     });
 
     test('defaults to an automatic warp and keeps it when set again', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         expect(source.getWarp()).toBe('auto');
 
         const fired = vi.fn();
@@ -362,7 +367,7 @@ describe('ImageSource', () => {
     });
 
     test('sets coordinates via updateImage', async () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         source.onAdd(map);
         server.respond();
         const beforeSerialized = source.serialize();
@@ -379,7 +384,7 @@ describe('ImageSource', () => {
     });
 
     test('fires data event when content is loaded', async () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         const promise = waitForEvent(source, 'data', (e) => e.dataType === 'source' && e.sourceDataType === 'content');
         source.onAdd(map);
         await sleep(0);
@@ -389,7 +394,7 @@ describe('ImageSource', () => {
     });
 
     test('fires data event when metadata is loaded', async () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         const promise = waitForEvent(source, 'data', (e) => e.dataType === 'source' && e.sourceDataType === 'metadata');
         source.onAdd(map);
         await sleep(0);
@@ -398,7 +403,7 @@ describe('ImageSource', () => {
     });
 
     test('fires idle event on prepare call when there is at least one not loaded tile', async () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
         const tile = new Tile(new OverscaledTileID(1, 0, 1, 0, 0), 512);
         const promise = waitForEvent(source, 'data', (e) => e.dataType === 'source' && e.sourceDataType === 'idle');
         source.onAdd(map);
@@ -465,7 +470,7 @@ describe('ImageSource', () => {
     });
 
     test('serialize url and coordinates', () => {
-        const source = createSource({url: '/image.png'});
+        const source = createSource({url: '/image.png'}, map);
 
         const serialized = source.serialize() as ImageSourceSpecification;
         expect(serialized.type).toBe('image');
@@ -474,7 +479,7 @@ describe('ImageSource', () => {
     });
 
     test('allows using updateImage before initial image is loaded', async () => {
-        const source = createSource({url: '/image.png', eventedParent: map});
+        const source = createSource({url: '/image.png', eventedParent: map}, map);
 
         // Suppress errors because we're aborting when updating.
         map.on('error', () => {});
@@ -489,7 +494,7 @@ describe('ImageSource', () => {
     });
 
     test('keeps the image handed to updateImage instead of the url load it replaced', async () => {
-        const source = createSource({url: '/image.png', eventedParent: map});
+        const source = createSource({url: '/image.png', eventedParent: map}, map);
         const bitmap = new ImageBitmap();
         const load = vi.spyOn(source, 'load');
 
@@ -502,7 +507,7 @@ describe('ImageSource', () => {
     });
 
     test('cancels request if updateImage is used', async () => {
-        const source = createSource({url: '/image.png', eventedParent: map});
+        const source = createSource({url: '/image.png', eventedParent: map}, map);
 
         // Suppress errors because we're aborting.
         map.on('error', () => {});
@@ -516,7 +521,7 @@ describe('ImageSource', () => {
     });
 
     test('cancels the request updateImage started when updateImage is used again', async () => {
-        const source = createSource({url: '/image.png', eventedParent: map});
+        const source = createSource({url: '/image.png', eventedParent: map}, map);
         const load = vi.spyOn(source, 'load');
 
         source.onAdd(map);
@@ -530,7 +535,7 @@ describe('ImageSource', () => {
     });
 
     test('marks the source as loaded when the request has received a response', async () => {
-        const source = createSource({url: '/image.png', eventedParent: map});
+        const source = createSource({url: '/image.png', eventedParent: map}, map);
 
         expect(source.loaded()).toBe(false);
         source.onAdd(map);
@@ -539,7 +544,7 @@ describe('ImageSource', () => {
         await sleep(0);
         expect(source.loaded()).toBe(true);
 
-        const missingImagesource = createSource({url: '/missing-image.png', eventedParent: map});
+        const missingImagesource = createSource({url: '/missing-image.png', eventedParent: map}, map);
 
         // Suppress errors as we're loading a missing image.
         map.on('error', () => {});
@@ -554,7 +559,7 @@ describe('ImageSource', () => {
     });
 
     test('does not throw when updateImage is called while a request is pending', async () => {
-        const source = createSource({url: '/image.png', eventedParent: map});
+        const source = createSource({url: '/image.png', eventedParent: map}, map);
 
         const errorHandler = vi.fn();
         source.on('error', errorHandler);
@@ -630,7 +635,7 @@ describe('ImageSource', () => {
             map.setTransformRequest(transformRequest);
             // Suppress errors from aborting the initial (never-responded) request.
             map.on('error', () => {});
-            source = createSource({url: '/image.png', eventedParent: map});
+            source = createSource({url: '/image.png', eventedParent: map}, map);
             // onAdd starts the initial load synchronously up to its first await, so
             // this._abortController is set and transformRequest is called once. Clear that call
             // so tests can assert the image path issues no further request.
@@ -681,7 +686,7 @@ describe('ImageSource', () => {
 
     describe('terrainTileRanges', () => {
         test('sets tile ranges for all zoom levels', () => {
-            const source = createSource({url: '/image.png'});
+            const source = createSource({url: '/image.png'}, map);
             source.onAdd(map);
             server.respond();
             source.setCoordinates([[-10, 10], [10, 10], [10, -10], [-10, -10]]);
@@ -692,7 +697,7 @@ describe('ImageSource', () => {
         });
 
         test('calculates tile ranges properly', () => {
-            const source = createSource({url: '/image.png'});
+            const source = createSource({url: '/image.png'}, map);
             source.onAdd(map);
             server.respond();
             source.setCoordinates([[11.39585,47.30074],[11.46585,47.30074],[11.46585,47.25074],[11.39585,47.25074]]);
@@ -731,7 +736,7 @@ describe('ImageSource', () => {
         });
 
         test('calculates tile ranges for an image exceeds the world bounds - east', () => {
-            const source = createSource({url: '/image.png'});
+            const source = createSource({url: '/image.png'}, map);
             source.onAdd(map);
             server.respond();
             source.setCoordinates([[-180, 60], [270, 60], [270, -60], [-180, -60]]);
@@ -754,7 +759,7 @@ describe('ImageSource', () => {
         });
 
         test('calculates tile ranges for an image exceeds the world bounds - west', () => {
-            const source = createSource({url: '/image.png'});
+            const source = createSource({url: '/image.png'}, map);
             source.onAdd(map);
             server.respond();
             source.setCoordinates([[120, 60], [-270, 60], [-270, -60], [120, -60]]);
@@ -775,5 +780,27 @@ describe('ImageSource', () => {
                 maxTileY: 1
             });
         });
+    });
+});
+
+describe('ImageSource corner placement', () => {
+    function createSourceOnProjection(worldCoordinateHelper: WorldCoordinateHelper) {
+        const coordinates: Coordinates = [[0, 60], [45, 60], [45, 30], [0, 30]];
+        const source = new ImageSource('id', {type: 'image', url: '/image.png', coordinates}, {} as any, undefined);
+        source.map = {style: {projection: {worldCoordinateHelper}}} as any as Map;
+        source.setCoordinates(coordinates);
+        return source;
+    }
+
+    test('places the corners with mercator on a mercator map', () => {
+        const source = createSourceOnProjection(mercatorWorldCoordinates);
+        expect(source.tileID).toEqual(expect.objectContaining({z: 3, x: 4, y: 2}));
+    });
+
+    test('places the corners with the map projection on a planar map', () => {
+        const source = createSourceOnProjection(new PlanarProjection(simpleCrs).worldCoordinateHelper);
+        // simple CRS: world x 0.5..0.75, y 0.167..0.333, centered in tile 2/2/1 and a third of a tile above and below it
+        expect(source.tileID).toEqual(expect.objectContaining({z: 2, x: 2, y: 1}));
+        expect(source.tileCoords.map(p => [p.x, p.y])).toEqual([[0, -2731], [8192, -2731], [8192, 2731], [0, 2731]]);
     });
 });

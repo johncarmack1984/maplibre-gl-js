@@ -86,7 +86,7 @@ afterEach(() => {
 describe('Style', () => {
     test('RTL plugin load reloads vector source but not raster source', async() => {
         const map = getStubMap();
-        const style = new Style(map);
+        const style = createStyle(map);
         map.style = style;
         style.loadJSON({
             'version': 8,
@@ -120,7 +120,7 @@ describe('Style', () => {
 
 describe('Style.loadURL', () => {
     test('fires "dataloading"', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const spy = vi.fn();
 
         style.on('dataloading', spy);
@@ -135,7 +135,7 @@ describe('Style.loadURL', () => {
         const map = getStubMap();
         const spy = vi.spyOn(map._requestManager, 'transformRequest');
 
-        const style = new Style(map);
+        const style = createStyle(map);
         style.loadURL('style.json');
 
         expect(spy).toHaveBeenCalledTimes(1);
@@ -153,7 +153,7 @@ describe('Style.loadURL', () => {
             headers: {Authorization: 'Bearer token'}
         });
 
-        const style = new Style(map);
+        const style = createStyle(map);
         style.loadURL('style.json');
         await sleep(0);
         server.respond();
@@ -164,7 +164,7 @@ describe('Style.loadURL', () => {
     });
 
     test('validates the style', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         const errorPromise = style.once('error');
 
@@ -179,7 +179,7 @@ describe('Style.loadURL', () => {
     });
 
     test('cancels pending requests if removed', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadURL('style.json');
         await sleep(0);
         style._remove();
@@ -187,7 +187,7 @@ describe('Style.loadURL', () => {
     });
 
     test('does not fire an error if removed', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const spy = vi.fn();
 
         style.on('error', spy);
@@ -199,7 +199,7 @@ describe('Style.loadURL', () => {
     });
 
     test('fires an error if the request fails', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const errorStatus = 400;
 
         const promise = style.once('error');
@@ -214,7 +214,7 @@ describe('Style.loadURL', () => {
     });
 
     test('does not throw if request is pending when removed', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
 
@@ -230,7 +230,7 @@ describe('Style.loadURL', () => {
 
 describe('Style.loadJSON', () => {
     test('serialize() returns undefined until style is loaded', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         expect(style.serialize()).toBeUndefined();
         await style.once('style.load');
@@ -238,7 +238,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('loads a style whose filter mixes legacy and expression syntax, warning instead of blanking the map', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const errorSpy = vi.fn();
         style.on('error', errorSpy);
@@ -257,7 +257,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('fires "dataloading" (synchronously)', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const spy = vi.fn();
 
         style.on('dataloading', spy);
@@ -269,7 +269,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('fires "data" (asynchronously)', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         style.loadJSON(createStyleJSON());
 
@@ -289,7 +289,7 @@ describe('Style.loadJSON', () => {
         server.respondWith('GET', 'http://example.com/sprite.png', new ArrayBuffer(8));
         server.respondWith('GET', 'http://example.com/sprite.json', '{}');
 
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         style.loadJSON({
             'version': 8,
@@ -324,7 +324,7 @@ describe('Style.loadJSON', () => {
         server.respondWith('GET', 'http://example.com/sprite.png', new ArrayBuffer(8));
         server.respondWith('GET', 'http://example.com/sprite.json', '{"image1": {"width": 1, "height": 1, "x": 0, "y": 0, "pixelRatio": 1.0}}');
 
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         style.loadJSON({
             'version': 8,
@@ -354,7 +354,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('validates the style', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         const promise = style.once('error');
         style.loadJSON(createStyleJSON({version: 'invalid'}));
@@ -452,7 +452,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('sets up layer event forwarding', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'background',
@@ -472,7 +472,7 @@ describe('Style.loadJSON', () => {
 
     test('sets terrain if defined', async () => {
         const map = getStubMap();
-        const style = new Style(map);
+        const style = createStyle(map);
         map.setTerrain = vi.fn();
         style.loadJSON(createStyleJSON({
             sources: {'source-id': createGeoJSONSource()},
@@ -486,7 +486,7 @@ describe('Style.loadJSON', () => {
 
     test('sets state if defined', async () => {
         const map = getStubMap();
-        const style = new Style(map);
+        const style = createStyle(map);
         style.loadJSON(createStyleJSON({
             state: {
                 foo: {
@@ -519,7 +519,7 @@ describe('Style.loadJSON', () => {
             }]
         });
 
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON(), {
             transformStyle: (prevStyle, nextStyle) => ({
                 ...nextStyle,
@@ -542,7 +542,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('propagates global state object to layers', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(
             createStyleJSON({
                 sources: {
@@ -573,7 +573,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('propagates global state object to layers added after loading style', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(
             createStyleJSON({
                 sources: {
@@ -605,7 +605,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('does not throw if request is pending when removed', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
 
@@ -627,7 +627,7 @@ describe('Style.loadJSON', () => {
 
 describe('Style._load', () => {
     test('initiates sprite loading when it\'s present', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         const prevStyleSpec = createStyleJSON({
             sprite: 'https://example.com/test1'
@@ -644,7 +644,7 @@ describe('Style._load', () => {
     });
 
     test('does not initiate sprite loading when it\'s absent (undefined)', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
 
         const prevStyleSpec = createStyleJSON({
             sprite: 'https://example.com/test1'
@@ -659,7 +659,7 @@ describe('Style._load', () => {
     });
 
     test('layers are broadcasted to worker', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         let dispatchType: MessageType;
         let dispatchData;
         const styleSpec = createStyleJSON({
@@ -689,7 +689,7 @@ describe('Style._load', () => {
     });
 
     test('validate style when validate option is true', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const styleSpec = createStyleJSON({
             layers: [{
                 id: 'background',
@@ -712,7 +712,7 @@ describe('Style._load', () => {
     });
 
     test('layers are NOT serialized immediately after creation', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const styleSpec = createStyleJSON({
             layers: [{
                 id: 'background',
@@ -728,7 +728,7 @@ describe('Style._load', () => {
     });
 
     test('projection is mercator if not specified', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const styleSpec = createStyleJSON({
             layers: [{
                 id: 'background',
@@ -744,7 +744,7 @@ describe('Style._load', () => {
 
 describe('Style._remove', () => {
     test('removes cache sources and clears their tiles', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {'source-id': createGeoJSONSource()}
         }));
@@ -763,7 +763,7 @@ describe('Style._remove', () => {
     });
 
     test('deregisters plugin listener', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         vi.spyOn(rtlMainThreadPluginFactory(), 'off');
 
@@ -928,7 +928,7 @@ describe('Style.update', () => {
 
 describe('Style.setState', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.setState(createStyleJSON())).toThrow(/load/i);
     });
 
@@ -1115,7 +1115,7 @@ describe('Style.setState', () => {
             type: 'raster',
             url: '/tilejson.json'
         };
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(initial);
         const promise = style.once('style.load');
         server.respond();
@@ -1138,7 +1138,7 @@ describe('Style.setState', () => {
             }
         });
 
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(initialState);
         await style.once('style.load');
         const didChange = style.setState(nextState);
@@ -1173,7 +1173,7 @@ describe('Style.setState', () => {
             }
         });
 
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(initialState);
 
         await style.once('style.load');
@@ -1208,7 +1208,7 @@ describe('Style.setState', () => {
         });
 
         const nextState = createStyleJSON();
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(initialState);
 
         await style.once('style.load');
@@ -1233,7 +1233,7 @@ describe('Style.setState', () => {
     });
 
     test('Style.setState skips validateStyle when validate false', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const styleSpec = createStyleJSON();
         style.loadJSON(styleSpec);
 
@@ -1278,12 +1278,12 @@ describe('Style.setState', () => {
 
 describe('Style.addSource', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.addSource('source-id', createSource())).toThrow(/load/i);
     });
 
     test('throw if missing source type', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         const source = createSource();
@@ -1359,12 +1359,12 @@ describe('Style.addSource', () => {
 
 describe('Style.removeSource', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.removeSource('source-id')).toThrow(/load/i);
     });
 
     test('fires "data" event', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         const source = createSource();
         const dataPromise = style.once('data');
@@ -1377,7 +1377,7 @@ describe('Style.removeSource', () => {
     });
 
     test('clears tiles', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {'source-id': createGeoJSONSource()}
         }));
@@ -1390,7 +1390,7 @@ describe('Style.removeSource', () => {
     });
 
     test('throws on non-existence', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         expect(() => {
@@ -1399,7 +1399,7 @@ describe('Style.removeSource', () => {
     });
 
     async function createStyleAndLoad(): Promise<Style> {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             'sources': {
                 'mapLibre-source': createGeoJSONSource()
@@ -1434,7 +1434,7 @@ describe('Style.removeSource', () => {
     });
 
     test('tears down source event forwarding', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         const source = createSource();
 
@@ -1456,7 +1456,7 @@ describe('Style.removeSource', () => {
 
 describe('Style.setProjection', () => {
     test('does not mutate original input style JSON', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const inputJson = createStyleJSON({projection: {type: 'mercator'}});
         const inputJsonString = JSON.stringify(inputJson);
         const inputProjection = inputJson.projection;
@@ -1472,7 +1472,7 @@ describe('Style.setProjection', () => {
 
 describe('Style.setSky', () => {
     test('does not mutate original input style JSON', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const inputJson = createStyleJSON({sky: {'sky-color': 'fuchsia'}});
         const inputJsonString = JSON.stringify(inputJson);
         const inputSky = inputJson.sky;
@@ -1488,7 +1488,7 @@ describe('Style.setSky', () => {
 
 describe('Style.setGlyphs', () => {
     test('does not mutate original input style JSON', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const inputJson = createStyleJSON({glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'});
         const inputJsonString = JSON.stringify(inputJson);
         const inputGlyphs = inputJson.glyphs;
@@ -1502,7 +1502,7 @@ describe('Style.setGlyphs', () => {
     });
 
     test('allows glyphs to be unset via null and undefined', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         style.update({zoom: 1} as EvaluationParameters);
@@ -1529,12 +1529,12 @@ describe('Style.setGlyphs', () => {
 
 describe('Style.addSprite', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.addSprite('test', 'https://example.com/sprite')).toThrow(/load/i);
     });
 
     test('validates input and fires an error if there\'s already an existing sprite with the same id', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         const promise = style.once('error');
@@ -1545,7 +1545,7 @@ describe('Style.addSprite', () => {
     });
 
     test('adds a new sprite to the stylesheet when there\'s no sprite at all', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         style.addSprite('test', 'https://example.com/sprite');
@@ -1553,7 +1553,7 @@ describe('Style.addSprite', () => {
     });
 
     test('adds a new sprite to the stylesheet when there\'s a stringy sprite existing', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({sprite: 'https://example.com/default'}));
         await style.once('style.load');
         style.addSprite('test', 'https://example.com/sprite');
@@ -1564,7 +1564,7 @@ describe('Style.addSprite', () => {
     });
 
     test('adds a new sprite to the stylesheet when there\'s an array-sprite existing', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({sprite: [{id: 'default', url: 'https://example.com/default'}]}));
         await style.once('style.load');
         style.addSprite('test', 'https://example.com/sprite');
@@ -1575,7 +1575,7 @@ describe('Style.addSprite', () => {
     });
 
     test('does not mutate original input style JSON', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const inputJson = createStyleJSON({sprite: [{id: '0', url: 'https://example.com/sprite-0'}]});
         const inputJsonString = JSON.stringify(inputJson);
         const inputSprite = inputJson.sprite;
@@ -1589,7 +1589,7 @@ describe('Style.addSprite', () => {
     });
 
     test('does not throw if request is pending when removed', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
 
@@ -1608,12 +1608,12 @@ describe('Style.addSprite', () => {
 
 describe('Style.removeSprite', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.removeSprite('test')).toThrow(/load/i);
     });
 
     test('fires an error when trying to delete an non-existing sprite (sprite: undefined)', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         const errorPromise = style.once('error');
@@ -1623,7 +1623,7 @@ describe('Style.removeSprite', () => {
     });
 
     test('fires an error when trying to delete an non-existing sprite (sprite: single url)', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({sprite: 'https://example.com/sprite'}));
         await style.once('style.load');
         const errorPromise = style.once('error');
@@ -1634,7 +1634,7 @@ describe('Style.removeSprite', () => {
     });
 
     test('fires an error when trying to delete an non-existing sprite (sprite: array)', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({sprite: [{id: 'default', url: 'https://example.com/sprite'}]}));
         await style.once('style.load');
         const errorPromise = style.once('error');
@@ -1646,7 +1646,7 @@ describe('Style.removeSprite', () => {
     });
 
     test('removes the sprite when it\'s a single URL', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({sprite: 'https://example.com/test'}));
         await style.once('style.load');
         style.removeSprite('default');
@@ -1654,7 +1654,7 @@ describe('Style.removeSprite', () => {
     });
 
     test('removes the sprite when it\'s an array', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON([{id: 'default', url: 'https://example.com/sprite'}]));
         await style.once('style.load');
         style.removeSprite('default');
@@ -1662,7 +1662,7 @@ describe('Style.removeSprite', () => {
     });
 
     test('does not mutate original input style JSON', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const inputJson = createStyleJSON({sprite: 'https://example.com/sprite'});
         const inputJsonString = JSON.stringify(inputJson);
         const inputSprite = inputJson.sprite;
@@ -1678,7 +1678,7 @@ describe('Style.removeSprite', () => {
 
 describe('Style.setSprite', () => {
     test('does not mutate original input style JSON', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const inputJson = createStyleJSON({sprite: [{id: '0', url: 'https://example.com/sprite-0'}]});
         const inputJsonString = JSON.stringify(inputJson);
         const inputSprite = inputJson.sprite;
@@ -1693,7 +1693,7 @@ describe('Style.setSprite', () => {
 
     test('throws when error loading sprite', async () => {
         server.respondWith('https://example.com/sprite', [404, {}, '']);
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
 
@@ -1724,7 +1724,7 @@ describe('Style._loadSprite', () => {
     }
 
     async function createLoadedStyle(): Promise<Style> {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         return style;
@@ -1773,12 +1773,12 @@ describe('Style.setGeoJSONSourceData', () => {
     const geoJSON = {type: 'FeatureCollection', features: []} as GeoJSON.GeoJSON;
 
     test('throws before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.setGeoJSONSourceData('source-id', geoJSON)).toThrow(/load/i);
     });
 
     test('throws on non-existence', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         expect(() => style.setGeoJSONSourceData('source-id', geoJSON)).toThrow(/There is no source with this ID/);
@@ -1787,11 +1787,11 @@ describe('Style.setGeoJSONSourceData', () => {
 
 describe('Style.setGlobalState', () => {
     test('throws before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.setGlobalState({})).toThrow(/load/i);
     });
     test('sets global state', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         style.setGlobalState({accentColor: {default: 'yellow'}});
@@ -1799,7 +1799,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('reloads sources when state property is used in filter property', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource(),
@@ -1835,7 +1835,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('reloads sources when state property is used in layout property', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'line-source-id': createGeoJSONSource()
@@ -1861,7 +1861,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('reloads sources when a new state property is used in a paint property that affects layout', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource(),
@@ -1890,7 +1890,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('does not reload sources when state property is set to the same value as current one', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             state: {
                 'showCircles': {
@@ -1921,7 +1921,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('does not reload sources when new state property is used in paint property', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource(),
@@ -1950,7 +1950,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('does not reload sources when a new state property is used in a paint property while state property used in filter is unchanged', async() => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource()
@@ -1979,7 +1979,7 @@ describe('Style.setGlobalState', () => {
     });
 
     test('does not reload sources when new state property is used in paint property while state property used in layout is unchanged', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'line-source-id': createGeoJSONSource()
@@ -2011,12 +2011,12 @@ describe('Style.setGlobalState', () => {
 
 describe('Style.setGlobalStateProperty', () => {
     test('throws before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.setGlobalStateProperty('accentColor', 'yellow')).toThrow(/load/i);
     });
 
     test('sets property', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -2027,7 +2027,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('sets property to default value when called with null', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             state: {
                 'accentColor': {
@@ -2045,7 +2045,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('reloads sources when state property is used in filter property', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-1-source-id': createGeoJSONSource(),
@@ -2098,7 +2098,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('reloads sources when state property is used in layout property', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'line-1-source-id': createGeoJSONSource(),
@@ -2155,7 +2155,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('reloads sources when state property is used in a paint property that affects layout', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource()
@@ -2183,7 +2183,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('reloads sources when state property is used in visibility', async() => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource()
@@ -2211,7 +2211,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('does not reload sources when state property is set to the same value as current one', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             state: {
                 'showCircle': {
@@ -2243,7 +2243,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('does not reload sources when state property is only used in paint properties', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource()
@@ -2271,7 +2271,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('does not reload sources when state property is used in paint property while a different state property used in filter is unchanged', async() => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'circle-source-id': createGeoJSONSource()
@@ -2300,7 +2300,7 @@ describe('Style.setGlobalStateProperty', () => {
     });
 
     test('does not reload sources when state property is used in paint property while a different state property used in layout is unchanged', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             sources: {
                 'line-source-id': createGeoJSONSource()
@@ -2332,12 +2332,12 @@ describe('Style.setGlobalStateProperty', () => {
 
 describe('Style.addLayer', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.addLayer({id: 'background', type: 'background'})).toThrow(/load/i);
     });
 
     test('fires an error and does not add a custom layer without a render method', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         const errorSpy = vi.fn();
@@ -2351,7 +2351,7 @@ describe('Style.addLayer', () => {
     });
 
     test('sets up layer event forwarding', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         const errorPromise = style.once('error');
@@ -2399,7 +2399,7 @@ describe('Style.addLayer', () => {
     });
 
     test('emits error on invalid layer', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         const errorPromise = style.once('error');
@@ -2417,7 +2417,7 @@ describe('Style.addLayer', () => {
     });
 
     test('#4040 does not mutate source property when provided inline', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         await style.once('style.load');
         const source = {
@@ -2529,7 +2529,7 @@ describe('Style.addLayer', () => {
     });
 
     test('fires "data" event', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         const layer = {id: 'background', type: 'background'} as LayerSpecification;
 
@@ -2543,7 +2543,7 @@ describe('Style.addLayer', () => {
     });
 
     test('emits error on duplicates', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         const layer = {id: 'background', type: 'background'} as LayerSpecification;
 
@@ -2556,7 +2556,7 @@ describe('Style.addLayer', () => {
     });
 
     test('adds to the end by default', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'a',
@@ -2574,7 +2574,7 @@ describe('Style.addLayer', () => {
     });
 
     test('adds before the given layer', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'a',
@@ -2592,7 +2592,7 @@ describe('Style.addLayer', () => {
     });
 
     test('fire error if before layer does not exist', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'a',
@@ -2612,7 +2612,7 @@ describe('Style.addLayer', () => {
     });
 
     test('fires an error on non-existent source layer', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(extend(createStyleJSON(), {
             sources: {
                 dummy: {
@@ -2640,12 +2640,12 @@ describe('Style.addLayer', () => {
 
 describe('Style.removeLayer', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.removeLayer('background')).toThrow(/load/i);
     });
 
     test('fires "data" event', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         const layer = {id: 'background', type: 'background'} as LayerSpecification;
 
@@ -2661,7 +2661,7 @@ describe('Style.removeLayer', () => {
     });
 
     test('tears down layer event forwarding', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'background',
@@ -2685,7 +2685,7 @@ describe('Style.removeLayer', () => {
     });
 
     test('fires an error on non-existence', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -2696,7 +2696,7 @@ describe('Style.removeLayer', () => {
     });
 
     test('removes from the order', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'a',
@@ -2713,7 +2713,7 @@ describe('Style.removeLayer', () => {
     });
 
     test('does not remove dereffed layers', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [{
                 id: 'a',
@@ -2733,12 +2733,12 @@ describe('Style.removeLayer', () => {
 
 describe('Style.moveLayer', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.moveLayer('background')).toThrow(/load/i);
     });
 
     test('fires "data" event', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
         const layer = {id: 'background', type: 'background'} as LayerSpecification;
 
@@ -2752,7 +2752,7 @@ describe('Style.moveLayer', () => {
     });
 
     test('fires an error on non-existence', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -2763,7 +2763,7 @@ describe('Style.moveLayer', () => {
     });
 
     test('changes the order', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [
                 {id: 'a', type: 'background'},
@@ -2778,7 +2778,7 @@ describe('Style.moveLayer', () => {
     });
 
     test('moves to existing location', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             layers: [
                 {id: 'a', type: 'background'},
@@ -2795,7 +2795,7 @@ describe('Style.moveLayer', () => {
 
 describe('Style.setPaintProperty', () => {
     test('#4738 postpones source reload until layers have been broadcast to workers', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(extend(createStyleJSON(), {
             'sources': {
                 'geojson': {
@@ -2834,7 +2834,7 @@ describe('Style.setPaintProperty', () => {
     });
 
     test('#5802 clones the input', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {},
@@ -2861,7 +2861,7 @@ describe('Style.setPaintProperty', () => {
     });
 
     test('respects validate option', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {},
@@ -2892,7 +2892,7 @@ describe('Style.setPaintProperty', () => {
 
 describe('Style.getPaintProperty', () => {
     test('#5802 clones the output', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {},
@@ -2918,7 +2918,7 @@ describe('Style.getPaintProperty', () => {
 
 describe('Style.setLayoutProperty', () => {
     test('#5802 clones the input', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -2954,7 +2954,7 @@ describe('Style.setLayoutProperty', () => {
     });
 
     test('respects validate option', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -2993,7 +2993,7 @@ describe('Style.setLayoutProperty', () => {
 
 describe('Style.getLayoutProperty', () => {
     test('#5802 clones the output', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -3028,12 +3028,14 @@ describe('Style.getLayoutProperty', () => {
 
 describe('Style.setFilter', () => {
     test('throws if style is not loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.setFilter('symbol', ['==', 'id', 1])).toThrow(/load/i);
     });
 
     function createStyle() {
-        const style = new Style(getStubMap());
+        const map = getStubMap();
+        const style = new Style(map);
+        map.style = style;
         style.loadJSON({
             version: 8,
             sources: {
@@ -3161,12 +3163,14 @@ describe('Style.setFilter', () => {
 
 describe('Style.setLayerZoomRange', () => {
     test('throw before loaded', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(() => style.setLayerZoomRange('symbol', 5, 12)).toThrow(/load/i);
     });
 
     function createStyle() {
-        const style = new Style(getStubMap());
+        const map = getStubMap();
+        const style = new Style(map);
+        map.style = style;
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -3205,7 +3209,7 @@ describe('Style.setLayerZoomRange', () => {
     });
 
     test('does not reload raster source', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -3232,7 +3236,7 @@ describe('Style.setLayerZoomRange', () => {
 
 describe('Style.getLayersOrder', () => {
     test('returns ids of layers in the correct order', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -3264,7 +3268,7 @@ describe('Style.queryRenderedFeatures', () => {
     let transform: MercatorTransform;
 
     beforeEach(() => new Promise<void>(callback => {
-        style = new Style(getStubMap());
+        style = createStyle();
         transform = new MercatorTransform();
         transform.resize(512, 512);
         function queryMapLibreFeatures(layers, serializedLayers, getFeatureState, queryGeom, cameraQueryGeom, scale, params) {
@@ -3456,7 +3460,7 @@ describe('Style.queryRenderedFeatures', () => {
 
 describe('Style defers  ...', () => {
     test('... expensive methods', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             'sources': {
                 'streets': createGeoJSONSource(),
@@ -3509,7 +3513,7 @@ describe('Style.query*Features', () => {
     beforeEach(() => new Promise<void>(callback => {
         transform = new MercatorTransform();
         transform.resize(100, 100);
-        style = new Style(getStubMap());
+        style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -3622,12 +3626,12 @@ describe('Style.query*Features', () => {
 
 describe('Style.hasTransitions', () => {
     test('returns false when the style is loading', () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         expect(style.hasTransitions()).toBe(false);
     });
 
     test('returns true when a property is transitioning', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {},
@@ -3644,7 +3648,7 @@ describe('Style.hasTransitions', () => {
     });
 
     test('returns false when a property is not transitioning', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {},
@@ -3668,7 +3672,7 @@ describe('Style.serialize', () => {
             exaggeration: 1
         };
         const styleJson = createStyleJSON({terrain});
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(styleJson);
 
         await style.once('style.load');
@@ -3676,7 +3680,7 @@ describe('Style.serialize', () => {
     });
 
     test('do not include terrain property when map does not have 3D terrain', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3684,7 +3688,7 @@ describe('Style.serialize', () => {
     });
 
     test('include projection property when projection is defined in the style', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({
             projection: {
                 type: 'globe'
@@ -3697,7 +3701,7 @@ describe('Style.serialize', () => {
     });
 
     test('include projection property when projection is set', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3708,7 +3712,7 @@ describe('Style.serialize', () => {
     });
 
     test('include projection property when projection is set to mercator', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3728,7 +3732,7 @@ describe('Style.serialize', () => {
             'fog-color': '#fff'
         };
         const styleJson = createStyleJSON({sky});
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(styleJson);
 
         await style.once('style.load');
@@ -3739,7 +3743,7 @@ describe('Style.serialize', () => {
         const sky = {
             'atmosphere-blend': 0.5,
         };
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3751,7 +3755,7 @@ describe('Style.serialize', () => {
     });
 
     test('do not include sky property when map does not have sky', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3759,7 +3763,7 @@ describe('Style.serialize', () => {
     });
 
     test('sky should be undefined when map does not have sky', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3772,7 +3776,7 @@ describe('Style.serialize', () => {
             'fog-color': '#fff'
         };
         const styleJson = createStyleJSON({sky});
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(styleJson);
 
         await style.once('style.load');
@@ -3790,7 +3794,7 @@ describe('Style.serialize', () => {
             'fog-color': '#fff'
         };
         const styleJson = createStyleJSON({sky});
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(styleJson);
 
         await style.once('style.load');
@@ -3799,7 +3803,7 @@ describe('Style.serialize', () => {
     });
 
     test('include sky property when setting it after map loads', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON());
 
         await style.once('style.load');
@@ -3814,7 +3818,7 @@ describe('Style.serialize', () => {
         const sky: SkySpecification = {
             'fog-color': '#FF0000'
         };
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(createStyleJSON({sky, transition: {duration: 0, delay: 0}}));
 
         await style.once('style.load');

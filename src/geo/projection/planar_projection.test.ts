@@ -1,5 +1,6 @@
 import {describe, test, expect} from 'vitest';
 import {PlanarProjection, simpleCrs, type CrsDefinition} from './planar_projection.ts';
+import {createRotatedCrs} from '../../util/test/util.ts';
 import {MercatorProjection, MercatorShaderVariantKey} from './mercator_projection.ts';
 import {mercatorWorldCoordinates} from './world_coordinate_helper.ts';
 import {LngLat, earthRadius} from '../lng_lat.ts';
@@ -13,27 +14,6 @@ function createSamplePoints(): Array<[number, number]> {
         [-73.98, 40.75],
         [174.77, -41.29],
     ];
-}
-
-/**
- * A synthetic CRS whose axes both depend on lng and lat: lng/lat rotated by 30 degrees,
- * laid out in degrees, with tile 0/0/0 spanning -150..150 on each rotated axis.
- */
-function createRotatedCrs(): CrsDefinition {
-    const cos = Math.cos(Math.PI / 6);
-    const sin = Math.sin(Math.PI / 6);
-    return {
-        name: 'rotated-test',
-        project(lng, lat) {
-            return [lng * cos - lat * sin, lng * sin + lat * cos];
-        },
-        unproject(x, y) {
-            return [x * cos + y * sin, -x * sin + y * cos];
-        },
-        tileMatrix: {origin: [-150, 150], extentAtZoom0: 300},
-        metersPerUnit: 111_000,
-        bounds: [-100, -80, 100, 80],
-    };
 }
 
 /**

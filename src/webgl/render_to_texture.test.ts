@@ -1,4 +1,5 @@
 import {beforeEach, describe, test, expect, vi} from 'vitest';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
 import {RenderToTexture} from './render_to_texture.ts';
 import type {Painter, RTTObject} from '../render/painter.ts';
 import type {LineStyleLayer} from '../style/style_layer/line_style_layer.ts';
@@ -66,7 +67,7 @@ describe('render to texture', () => {
     const painter = {
         layersDrawn: 0,
         context: new Context(gl),
-        transform: {zoom: 10, calculatePosMatrix: () => {}, getProjectionData(_a) {}, calculateFogMatrix: () => {}},
+        transform: {zoom: 10, calculatePosMatrix: () => {}, getProjectionData(_a) {}, calculateFogMatrix: () => {}, worldCoordinateHelper: mercatorWorldCoordinates},
         colorModeForRenderPass: () => ColorMode.alphaBlended,
         getDepthModeFor3D: () => DepthMode.disabled,
         useProgram: () => ({draw: () => { layersDrawn++; }}),

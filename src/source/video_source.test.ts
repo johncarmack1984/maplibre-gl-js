@@ -1,4 +1,5 @@
 import {describe, expect, test, vi} from 'vitest';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
 import {getMockDispatcher, waitForEvent} from '../util/test/util.ts';
 import {extend} from '../util/util.ts';
 import {VideoSource} from './video_source.ts';
@@ -17,7 +18,7 @@ class StubMap extends Evented {
     constructor() {
         super();
         this.transform = new MercatorTransform();
-        this.style = {};
+        this.style = {projection: {worldCoordinateHelper: mercatorWorldCoordinates}};
         this.painter = {
             context: {
                 gl: {
@@ -36,6 +37,7 @@ function createSource(options) {
     const source = new VideoSource('id', options, getMockDispatcher(), options.eventedParent);
 
     source.video = c;
+    source.map = new StubMap() as any;
     return source;
 }
 

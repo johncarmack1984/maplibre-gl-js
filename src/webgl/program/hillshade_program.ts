@@ -20,6 +20,7 @@ import type {Painter} from '../../render/painter.ts';
 import type {HillshadeStyleLayer} from '../../style/style_layer/hillshade_style_layer.ts';
 import type {DEMData} from '../../data/dem_data.ts';
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
+import {mercatorWorldCoordinates} from '../../geo/projection/world_coordinate_helper.ts';
 
 export type HillshadeUniformsType = {
     'u_image': Uniform1i;
@@ -125,7 +126,13 @@ const hillshadeUniformPrepareValues = (tileID: OverscaledTileID, dem: DEMData): 
     };
 };
 
-function getTileLatRange(painter: Painter, tileID: OverscaledTileID) {
+/**
+ * The latitudes of the tile's top and bottom edges, which the hillshade shader uses to correct the mercator
+ * scale distortion of slopes (it scales by `cos(lat)`). A planar CRS is rendered in its own units with no
+ * latitude term, so it gets `[0, 0]`: `cos(0)` is 1 and the shader applies no correction.
+ */
+function getTileLatRange(painter: Painter, tileID: OverscaledTileID): [number, number] {
+    if (painter.transform.worldCoordinateHelper !== mercatorWorldCoordinates) return [0, 0];
     // for scaling the magnitude of a points slope by its latitude
     const tilesAtZoom = Math.pow(2, tileID.canonical.z);
     const y = tileID.canonical.y;

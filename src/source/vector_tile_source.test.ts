@@ -15,6 +15,8 @@ import {type WorkerTileParameters} from './worker_source.ts';
 import {SubdivisionGranularitySetting} from '../render/subdivision_granularity_settings.ts';
 import {type ActorMessage, MessageType} from '../util/actor_messages.ts';
 import {type MapSourceDataEvent} from '../ui/events.ts';
+import {PlanarProjection, simpleCrs} from '../geo/projection/planar_projection.ts';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
 
 class StubbedEvented extends Evented {}
 
@@ -29,7 +31,8 @@ function createSource(options, transformCallback?, clearTiles = () => {}) {
             projection: {
                 get subdivisionGranularity() {
                     return SubdivisionGranularitySetting.noSubdivision;
-                }
+                },
+                worldCoordinateHelper: mercatorWorldCoordinates
             }
         },
         getGlobalState: () => ({}),
@@ -376,6 +379,21 @@ describe('VectorTileSource', () => {
 
         await waitForMetadataEvent(source);
         expect(source.tileBounds.bounds).toEqual({_sw: {lng: -47, lat: -7}, _ne: {lng: -45, lat: 90}});
+    });
+
+    test('builds tile bounds with the map projection', async () => {
+        const source = createSource({
+            minzoom: 0,
+            maxzoom: 22,
+            tiles: ['http://example.com/{z}/{x}/{y}.png'],
+            bounds: [0, 45, 45, 80]
+        });
+        (source.map.style.projection as any).worldCoordinateHelper = new PlanarProjection(simpleCrs).worldCoordinateHelper;
+
+        await waitForMetadataEvent(source);
+        // In the simple CRS lat 45..80 is world y 0.056..0.25: rows 0 and 1 at zoom 3. Mercator would include row 2.
+        expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, 1))).toBeTruthy();
+        expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, 2))).toBeFalsy();
     });
 
     test('respects TileJSON.bounds when loaded from TileJSON', async () => {

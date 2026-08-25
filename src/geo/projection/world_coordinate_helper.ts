@@ -62,3 +62,44 @@ export const mercatorWorldCoordinates: WorldCoordinateHelper = {
     defaultLngLatBounds: null,
     wraps: true,
 };
+
+/**
+ * @internal
+ * Projects the four corners of a lng/lat box and returns the world rectangle that contains them.
+ * For a cylindrical mapping like mercator this is exactly the projected box; for a mapping where
+ * `x` and `y` both depend on `lng` and `lat` it is the axis-aligned hull of the corners, which is
+ * correct for axis-aligned lng/lat boxes up to the curvature of the box edges.
+ */
+export function lngLatBoxToWorldBox(helper: WorldCoordinateHelper, west: number, south: number, east: number, north: number): {minX: number; minY: number; maxX: number; maxY: number} {
+    const corners = [
+        helper.worldFromLngLat(west, north),
+        helper.worldFromLngLat(east, north),
+        helper.worldFromLngLat(east, south),
+        helper.worldFromLngLat(west, south),
+    ];
+    return {
+        minX: Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x),
+        minY: Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y),
+        maxX: Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x),
+        maxY: Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y),
+    };
+}
+
+/**
+ * @internal
+ * Maps the four corners of a world rectangle back to lng/lat and returns the box that contains them.
+ */
+export function worldBoxToLngLatBox(helper: WorldCoordinateHelper, minX: number, minY: number, maxX: number, maxY: number): {west: number; south: number; east: number; north: number} {
+    const corners = [
+        helper.lngLatFromWorld(minX, minY),
+        helper.lngLatFromWorld(maxX, minY),
+        helper.lngLatFromWorld(maxX, maxY),
+        helper.lngLatFromWorld(minX, maxY),
+    ];
+    return {
+        west: Math.min(corners[0].lng, corners[1].lng, corners[2].lng, corners[3].lng),
+        south: Math.min(corners[0].lat, corners[1].lat, corners[2].lat, corners[3].lat),
+        east: Math.max(corners[0].lng, corners[1].lng, corners[2].lng, corners[3].lng),
+        north: Math.max(corners[0].lat, corners[1].lat, corners[2].lat, corners[3].lat),
+    };
+}

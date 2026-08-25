@@ -13,7 +13,7 @@ import {TransformHelper} from '../transform_helper.ts';
 import {MercatorCoveringTilesDetailsProvider} from './mercator_covering_tiles_details_provider.ts';
 import {Frustum} from '../../util/primitives/frustum.ts';
 import {fastInvertProjMat4} from '../../util/fast_maths.ts';
-import type {WorldCoordinateHelper} from './world_coordinate_helper.ts';
+import {lngLatBoxToWorldBox, type WorldCoordinateHelper} from './world_coordinate_helper.ts';
 
 import {bisect, sampleAt, isBelowTerrainSample, type Terrain, type TerrainCoverageIndex, type TerrainSample} from '../../render/terrain.ts';
 import type {IReadonlyTransform, ITransform, TransformConstrainFunction} from '../transform_interface.ts';
@@ -49,27 +49,8 @@ type MercatorRay = {
     dy: number;
     dz: number;
     worldSize: number;
+    wraps: boolean;
 };
-
-/**
- * Projects the four corners of a lng/lat box and returns the world rectangle that contains them:
- * the axis-aligned hull of the corners, which is exact for a cylindrical mapping and correct up to
- * the curvature of the box edges for one where `x` and `y` both depend on `lng` and `lat`.
- */
-function lngLatBoxToWorldBox(helper: WorldCoordinateHelper, west: number, south: number, east: number, north: number): {minX: number; minY: number; maxX: number; maxY: number} {
-    const corners = [
-        helper.worldFromLngLat(west, north),
-        helper.worldFromLngLat(east, north),
-        helper.worldFromLngLat(east, south),
-        helper.worldFromLngLat(west, south),
-    ];
-    return {
-        minX: Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x),
-        minY: Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y),
-        maxX: Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x),
-        maxY: Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y),
-    };
-}
 
 export class MercatorTransform implements ITransform {
     private _helper: TransformHelper;
@@ -431,7 +412,7 @@ export class MercatorTransform implements ITransform {
         const dx = far[0] - near[0];
         const dy = far[1] - near[1];
         const dz = far[2] - near[2];
-        const ray: MercatorRay = {index, exaggeration: terrain.exaggeration, near, dx, dy, dz, worldSize};
+        const ray: MercatorRay = {index, exaggeration: terrain.exaggeration, near, dx, dy, dz, worldSize, wraps: this.worldCoordinateHelper.wraps};
 
         let tStart = 0;
         let tEnd = 1;
@@ -1011,7 +992,7 @@ export class MercatorTransform implements ITransform {
 }
 
 function mercatorSampleAt(ray: MercatorRay, t: number): TerrainSample {
-    return sampleAt(ray.index, ray.exaggeration, (ray.near[0] + t * ray.dx) / ray.worldSize, (ray.near[1] + t * ray.dy) / ray.worldSize);
+    return sampleAt(ray.index, ray.exaggeration, (ray.near[0] + t * ray.dx) / ray.worldSize, (ray.near[1] + t * ray.dy) / ray.worldSize, ray.wraps);
 }
 
 function mercatorIsBelowTerrain(ray: MercatorRay, t: number): boolean {

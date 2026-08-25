@@ -9,6 +9,8 @@ import {FeatureIndex, GEOJSON_TILE_LAYER_NAME} from '../data/feature_index.ts';
 import {CollisionBoxArray} from '../data/array_types.g.ts';
 import {extend} from '../util/util.ts';
 import {serialize, deserialize} from '../util/web_worker_transfer.ts';
+import {PlanarProjection, simpleCrs} from '../geo/projection/planar_projection.ts';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
 import type {Painter} from '../render/painter.ts';
 
 describe('querySourceFeatures', () => {
@@ -21,7 +23,7 @@ describe('querySourceFeatures', () => {
     test('not data', () => {
         const tile = new Tile(new OverscaledTileID(3, 0, 2, 1, 2), undefined);
         const result = [];
-        tile.querySourceFeatures(result);
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates});
         expect(result).toHaveLength(0);
     });
 
@@ -36,34 +38,34 @@ describe('querySourceFeatures', () => {
 
         test('query all source features', () => {
             let result = [];
-            tile.querySourceFeatures(result);
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates});
             expect(result).toHaveLength(1);
             expect(result[0].geometry.coordinates[0]).toEqual([-90, 0]);
             result = [];
-            tile.querySourceFeatures(result, {});
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates});
             expect(result).toHaveLength(1);
             expect(result[0].properties).toEqual(features[0].tags);
         });
 
         test('filter source features', () => {
             let result = [];
-            tile.querySourceFeatures(result, {sourceLayer: undefined, filter: ['==', 'oneway', true]});
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: undefined, filter: ['==', 'oneway', true]});
             expect(result).toHaveLength(1);
             result = [];
-            tile.querySourceFeatures(result, {sourceLayer: undefined, filter: ['!=', 'oneway', true]});
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: undefined, filter: ['!=', 'oneway', true]});
             expect(result).toHaveLength(0);
             result = [];
             const polygon = {type: 'Polygon',  coordinates: [[[-91, -1], [-89, -1], [-89, 1], [-91, 1], [-91, -1]]]} as GeoJSON.GeoJSON;
-            tile.querySourceFeatures(result, {sourceLayer: undefined, filter: ['within', polygon]});
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: undefined, filter: ['within', polygon]});
             expect(result).toHaveLength(1);
         });
 
         test('filter with global-state', () => {
             let result = [];
-            tile.querySourceFeatures(result, {sourceLayer: undefined, filter: ['==', ['get', 'oneway'], ['global-state', 'isOneway']] , globalState: {isOneway: true}});
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: undefined, filter: ['==', ['get', 'oneway'], ['global-state', 'isOneway']] , globalState: {isOneway: true}});
             expect(result).toHaveLength(1);
             result = [];
-            tile.querySourceFeatures(result, {sourceLayer: undefined, filter: ['!=', ['get', 'oneway'], ['global-state', 'isOneway']], globalState: {isOneway: true}});
+            tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: undefined, filter: ['!=', ['get', 'oneway'], ['global-state', 'isOneway']], globalState: {isOneway: true}});
             expect(result).toHaveLength(0);
         });
     });
@@ -73,14 +75,14 @@ describe('querySourceFeatures', () => {
         let result;
 
         result = [];
-        tile.querySourceFeatures(result);
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates});
         expect(result).toHaveLength(0);
 
         const geojsonWrapper = new GeoJSONWrapper([]);
         geojsonWrapper.name = GEOJSON_TILE_LAYER_NAME;
 
         result = [];
-        expect(() => tile.querySourceFeatures(result)).not.toThrow();
+        expect(() => tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates})).not.toThrow();
         expect(result).toHaveLength(0);
     });
 
@@ -89,7 +91,7 @@ describe('querySourceFeatures', () => {
         let result;
 
         result = [];
-        tile.querySourceFeatures(result);
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates});
         expect(result).toHaveLength(0);
 
         tile.loadVectorData(
@@ -98,18 +100,18 @@ describe('querySourceFeatures', () => {
         );
 
         result = [];
-        tile.querySourceFeatures(result, {sourceLayer: 'does-not-exist', filter: undefined});
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: 'does-not-exist', filter: undefined});
         expect(result).toHaveLength(0);
 
         result = [];
-        tile.querySourceFeatures(result, {sourceLayer: 'road', filter: undefined});
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: 'road', filter: undefined});
         expect(result).toHaveLength(3);
 
         result = [];
-        tile.querySourceFeatures(result, {sourceLayer: 'road', filter: ['==', 'class', 'main']});
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: 'road', filter: ['==', 'class', 'main']});
         expect(result).toHaveLength(1);
         result = [];
-        tile.querySourceFeatures(result, {sourceLayer: 'road', filter: ['!=', 'class', 'main']});
+        tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: 'road', filter: ['!=', 'class', 'main']});
         expect(result).toHaveLength(2);
 
     });
@@ -149,7 +151,7 @@ describe('querySourceFeatures', () => {
         );
 
         const features = [];
-        tile.querySourceFeatures(features, {sourceLayer: 'road', filter: undefined});
+        tile.querySourceFeatures(features, {worldCoordinateHelper: mercatorWorldCoordinates, sourceLayer: 'road', filter: undefined});
         expect(features).toHaveLength(3);
 
     });
@@ -338,3 +340,23 @@ function createVectorData(options?) {
 function createPainter(styleStub = {}): Painter {
     return {style: styleStub} as unknown as Painter;
 }
+
+describe('querySourceFeatures in a planar projection', () => {
+    test('returns geometry in the map projection lng/lat', () => {
+        const tile = new Tile(new OverscaledTileID(3, 0, 2, 1, 2), undefined);
+        const geojsonWrapper = new GeoJSONWrapper([{type: 1, geometry: [0, 0], tags: {}} as any as Feature]);
+        geojsonWrapper.name = GEOJSON_TILE_LAYER_NAME;
+        tile.loadVectorData(
+            createVectorData({rawTileData: fromVectorTileJs({layers: {[GEOJSON_TILE_LAYER_NAME]: geojsonWrapper}})}),
+            createPainter()
+        );
+
+        const mercator = [];
+        tile.querySourceFeatures(mercator, {worldCoordinateHelper: mercatorWorldCoordinates});
+        expect(mercator[0].geometry.coordinates[0]).toEqual([-90, 0]);
+
+        const simple = [];
+        tile.querySourceFeatures(simple, {worldCoordinateHelper: new PlanarProjection(simpleCrs).worldCoordinateHelper});
+        expect(simple[0].geometry.coordinates[0]).toEqual([-45, 0]);
+    });
+});

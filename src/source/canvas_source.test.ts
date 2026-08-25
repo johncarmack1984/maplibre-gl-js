@@ -1,4 +1,5 @@
 import {describe, beforeEach, test, expect, vi, afterEach} from 'vitest';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
 import {CanvasSource, type CanvasSourceSpecification} from '../source/canvas_source.ts';
 import {Event, Evented} from '../util/evented.ts';
 import {extend} from '../util/util.ts';
@@ -37,7 +38,7 @@ class StubMap extends Evented {
     constructor() {
         super();
         this.transform = new MercatorTransform();
-        this.style = {};
+        this.style = {projection: {worldCoordinateHelper: mercatorWorldCoordinates}};
         this.painter = {
             context: {
                 gl: {}

@@ -14,8 +14,19 @@ import type {IReadonlyTransform} from '../geo/transform_interface.ts';
 import type {RequestManager} from '../util/request_manager.ts';
 import type {MapSourceDataEvent} from '../ui/events.ts';
 import type {GeoJSONSourceDiff, UpdateableGeoJSON} from './geojson_source_diff.ts';
+import {mercatorWorldCoordinates, type WorldCoordinateHelper} from '../geo/projection/world_coordinate_helper.ts';
+import type {Map} from '../ui/map.ts';
 
 const wrapDispatcher = getWrapDispatcher();
+
+function createMapWithProjection(worldCoordinateHelper: WorldCoordinateHelper): Map {
+    return {
+        _requestManager: {transformRequest: (url: string) => ({url})},
+        style: {projection: {worldCoordinateHelper, subdivisionGranularity: SubdivisionGranularitySetting.noSubdivision}},
+        getPixelRatio: () => 1,
+        showCollisionBoxes: false
+    } as any as Map;
+}
 
 const mockDispatcher = wrapDispatcher({
     sendAsync() { return Promise.resolve({}); }
@@ -246,7 +257,8 @@ describe('GeoJSONSource.loadTile', () => {
             projection: {
                 get subdivisionGranularity() {
                     return SubdivisionGranularitySetting.noSubdivision;
-                }
+                },
+                worldCoordinateHelper: mercatorWorldCoordinates
             }
         }
     } as any;
@@ -709,7 +721,8 @@ describe('GeoJSONSource.update', () => {
                 projection: {
                     get subdivisionGranularity() {
                         return SubdivisionGranularitySetting.noSubdivision;
-                    }
+                    },
+                    worldCoordinateHelper: mercatorWorldCoordinates
                 }
             }
         } as any;
@@ -1129,6 +1142,7 @@ describe('GeoJSONSource.shoudReloadTile', () => {
 
     beforeEach(() => {
         source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinates);
         tile = new Tile(new OverscaledTileID(0, 0, 0, 0, 0), source.tileSize);
         tile.state = 'loaded';
     });

@@ -10,6 +10,7 @@ import {ErrorEvent, Event, Evented} from '../util/evented.ts';
 import {extend} from '../util/util.ts';
 import {type Dispatcher} from '../util/dispatcher.ts';
 import {TileBounds} from './tile_bounds.ts';
+import {mercatorWorldCoordinates} from '../geo/projection/world_coordinate_helper.ts';
 import {beforeMapTest, createMap as globalCreateMap, sleep, waitForEvent} from '../util/test/util.ts';
 import {now, restoreNow, setNow} from '../util/time_control.ts';
 
@@ -2370,7 +2371,7 @@ describe('tile manager loaded', () => {
     });
 
     test('TileManager.loaded (tiles outside bounds, idle)', async () => {
-        const japan = new TileBounds([122.74, 19.33, 149.0, 45.67]);
+        const japan = new TileBounds([122.74, 19.33, 149.0, 45.67], null, null, mercatorWorldCoordinates);
         const tileManager = createTileManager();
         tileManager._source.loadTile = async (tile) => {
             tile.state = 'loading';
