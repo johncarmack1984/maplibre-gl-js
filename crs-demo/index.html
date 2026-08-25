@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>maplibre-gl-js #168 — planar CRS demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="./maplibre-gl.css">
+<style>
+  html, body { margin: 0; height: 100%; font: 14px/1.4 system-ui, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  #panel { position: absolute; top: 10px; left: 10px; z-index: 1; background: rgba(255,255,255,.94); padding: 10px 12px; border-radius: 6px; max-width: 380px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  #panel h1 { font-size: 15px; margin: 0 0 6px; }
+  #panel button { margin: 2px 4px 2px 0; padding: 4px 8px; }
+  #panel button.on { font-weight: 700; outline: 2px solid #333; }
+  #hud { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre; margin-top: 6px; color: #333; }
+  #note { margin-top: 6px; color: #444; }
+  a { color: #06c; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <h1>Planar CRS demo — <a href="https://github.com/maplibre/maplibre-gl-js/issues/168">#168</a> branch</h1>
+  <div>
+    <button data-demo="simple">simple (identity grid)</button>
+    <button data-demo="polar">EPSG:3413 polar (NASA GIBS)</button>
+    <button data-demo="nz">EPSG:2193 NZ (LINZ)</button>
+  </div>
+  <div id="note"></div>
+  <div id="hud"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.15.0/dist/proj4.js"></script>
+<script type="module">
+import * as maplibregl from './maplibre-gl.mjs';
+
+proj4.defs('EPSG:3413', '+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs');
+proj4.defs('EPSG:2193', '+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
+
+function crs(name, tileMatrix) {
+  return {
+    name,
+    project: (lng, lat) => proj4('EPSG:4326', name, [lng, lat]),
+    unproject: (x, y) => proj4(name, 'EPSG:4326', [x, y]),
+    tileMatrix,
+  };
+}
+// NASA GIBS EPSG:3413 tile matrix set: one 8,388,608 m square at zoom 0 (GIBS "level 0" is our zoom 1).
+maplibregl.addProjection(crs('EPSG:3413', {origin: [-4194304, 4194304], extentAtZoom0: 8388608}));
+// LINZ NZTM2000Quad: numbers from the LINZ TileMatrixSet definition.
+maplibregl.addProjection(crs('EPSG:2193', {origin: [-3260586.7284, 10438190.1652], extentAtZoom0: 10018754.1714}));
+
+function gridImage() {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 512, 512); grad.addColorStop(0, '#f0b14a'); grad.addColorStop(1, '#5aa0d8');
+  g.fillStyle = grad; g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2;
+  for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 512); g.moveTo(0, i * 64); g.lineTo(512, i * 64); g.stroke(); }
+  g.fillStyle = '#222'; g.font = 'bold 26px system-ui';
+  g.fillText('[-60, 30]', 12, 34); g.fillText('[60, 30]', 390, 34); g.fillText('[-60, -30]', 12, 500); g.fillText('[60, -30]', 380, 500);
+  return c.toDataURL();
+}
+
+const gibs = (layers) => `https://gibs.earthdata.nasa.gov/wms/epsg3413/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&SRS=EPSG:3413&BBOX={bbox}&WIDTH=512&HEIGHT=512&FORMAT=image/png&TRANSPARENT=TRUE&LAYERS=${layers}`;
+const linzKey = new URLSearchParams(location.search).get('linz');
+
+const demos = {
+  simple: {
+    note: 'The built-in <code>simple</code> CRS: coordinates are plain x/y, no latitude stretch. Drag, scroll-zoom, right-drag to rotate/pitch. The image and the GeoJSON are placed in the same units.',
+    style: {
+      version: 8, projection: {type: 'simple'},
+      sources: {
+        grid: {type: 'image', url: gridImage(), coordinates: [[-60, 30], [60, 30], [60, -30], [-60, -30]]},
+        shapes: {type: 'geojson', data: {type: 'FeatureCollection', features: [
+          {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: [[[-40, -20], [-40, 20], [0, 20], [0, -20], [-40, -20]]]}},
+          {type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: [[-60, -30], [60, 30]]}},
+          {type: 'Feature', properties: {name: 'origin'}, geometry: {type: 'Point', coordinates: [0, 0]}},
+        ]}},
+      },
+      layers: [
+        {id: 'bg', type: 'background', paint: {'background-color': '#e9ecef'}},
+        {id: 'grid', type: 'raster', source: 'grid'},
+        {id: 'poly', type: 'fill', source: 'shapes', filter: ['==', '$type', 'Polygon'], paint: {'fill-color': '#d33', 'fill-opacity': .35}},
+        {id: 'line', type: 'line', source: 'shapes', filter: ['==', '$type', 'LineString'], paint: {'line-color': '#111', 'line-width': 3}},
+        {id: 'pt', type: 'circle', source: 'shapes', filter: ['==', '$type', 'Point'], paint: {'circle-radius': 7, 'circle-color': '#fff', 'circle-stroke-color': '#111', 'circle-stroke-width': 2}},
+      ],
+    },
+    view: {center: [0, 0], zoom: 1.6},
+  },
+  polar: {
+    note: 'EPSG:3413 (NSIDC polar stereographic), tiles requested from NASA GIBS WMS with the branch\'s <code>{bbox}</code> URL token: Blue Marble base + AMSR2 sea-ice concentration + coastlines. Nothing is reprojected client-side; the map camera lives in the CRS.',
+    style: {
+      version: 8, projection: {type: 'EPSG:3413'},
+      sources: {
+        base: {type: 'raster', tiles: [gibs('BlueMarble_ShadedRelief_Bathymetry')], tileSize: 512, maxzoom: 6, attribution: 'NASA GIBS'},
+        ice: {type: 'raster', tiles: [gibs('AMSRU2_Sea_Ice_Concentration_12km')], tileSize: 512, maxzoom: 6},
+        coast: {type: 'raster', tiles: [gibs('Coastlines')], tileSize: 512, maxzoom: 6},
+        pts: {type: 'geojson', data: {type: 'FeatureCollection', features: [
+          {type: 'Feature', properties: {name: 'North Pole'}, geometry: {type: 'Point', coordinates: [0, 90]}},
+          {type: 'Feature', properties: {name: 'Longyearbyen'}, geometry: {type: 'Point', coordinates: [15.63, 78.22]}},
+          {type: 'Feature', properties: {name: 'Utqiaġvik'}, geometry: {type: 'Point', coordinates: [-156.79, 71.29]}},
+          {type: 'Feature', properties: {name: 'Nuuk'}, geometry: {type: 'Point', coordinates: [-51.72, 64.18]}},
+        ]}},
+      },
+      layers: [
+        {id: 'base', type: 'raster', source: 'base'},
+        {id: 'ice', type: 'raster', source: 'ice', paint: {'raster-opacity': .85}},
+        {id: 'coast', type: 'raster', source: 'coast'},
+        {id: 'pts', type: 'circle', source: 'pts', paint: {'circle-radius': 6, 'circle-color': '#ff0', 'circle-stroke-color': '#000', 'circle-stroke-width': 1.5}},
+        {id: 'labels', type: 'symbol', source: 'pts', layout: {'text-field': ['get', 'name'], 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-font': ['Open Sans Regular']}, paint: {'text-color': '#fff', 'text-halo-color': '#000', 'text-halo-width': 1.5}},
+      ],
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    },
+    view: {center: [-40, 84], zoom: 1.0},
+  },
+  nz: {
+    note: linzKey
+      ? 'EPSG:2193 (NZTM2000) — LINZ Basemaps topographic tiles on the NZTM2000Quad grid, drawn in their native CRS.'
+      : 'EPSG:2193 needs a free LINZ Basemaps API key: open this page with <code>?linz=YOUR_KEY</code> (<a href="https://basemaps.linz.govt.nz/" target="_blank">get one</a>). Showing the grid with GeoJSON only.',
+    style: {
+      version: 8, projection: {type: 'EPSG:2193'},
+      sources: {
+        ...(linzKey ? {topo: {type: 'raster', tiles: [`https://basemaps.linz.govt.nz/v1/tiles/topographic/NZTM2000Quad/{z}/{x}/{y}.webp?api=${linzKey}`], tileSize: 256, maxzoom: 16, attribution: '© LINZ CC BY 4.0'}} : {}),
+        cities: {type: 'geojson', data: {type: 'FeatureCollection', features: [
+          {type: 'Feature', properties: {name: 'Auckland'}, geometry: {type: 'Point', coordinates: [174.76, -36.85]}},
+          {type: 'Feature', properties: {name: 'Wellington'}, geometry: {type: 'Point', coordinates: [174.78, -41.29]}},
+          {type: 'Feature', properties: {name: 'Christchurch'}, geometry: {type: 'Point', coordinates: [172.64, -43.53]}},
+          {type: 'Feature', properties: {name: 'Dunedin'}, geometry: {type: 'Point', coordinates: [170.50, -45.87]}},
+          {type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: [[174.76, -36.85], [174.78, -41.29], [172.64, -43.53], [170.50, -45.87]]}},
+        ]}},
+      },
+      layers: [
+        {id: 'bg', type: 'background', paint: {'background-color': '#dfe7ee'}},
+        ...(linzKey ? [{id: 'topo', type: 'raster', source: 'topo'}] : []),
+        {id: 'route', type: 'line', source: 'cities', filter: ['==', '$type', 'LineString'], paint: {'line-color': '#c33', 'line-width': 2}},
+        {id: 'cities', type: 'circle', source: 'cities', filter: ['==', '$type', 'Point'], paint: {'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-color': '#c33', 'circle-stroke-width': 2}},
+        {id: 'names', type: 'symbol', source: 'cities', filter: ['==', '$type', 'Point'], layout: {'text-field': ['get', 'name'], 'text-offset': [0, 1], 'text-anchor': 'top', 'text-font': ['Open Sans Regular']}, paint: {'text-halo-color': '#fff', 'text-halo-width': 1.5}},
+      ],
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    },
+    view: {center: [172.5, -41], zoom: 4.2},
+  },
+};
+
+const params = new URLSearchParams(location.search);
+let current = params.get('demo') in demos ? params.get('demo') : 'polar';
+const map = new maplibregl.Map({container: 'map', style: demos[current].style, ...demos[current].view, hash: false});
+map.addControl(new maplibregl.NavigationControl({visualizePitch: true}));
+map.addControl(new maplibregl.ScaleControl());
+
+function hud() {
+  const c = map.getCenter();
+  document.getElementById('hud').textContent = `projection ${map.getProjection()?.type}\ncenter ${c.lng.toFixed(3)}, ${c.lat.toFixed(3)}  zoom ${map.getZoom().toFixed(2)}  bearing ${map.getBearing().toFixed(0)}  pitch ${map.getPitch().toFixed(0)}`;
+}
+function select(name) {
+  current = name;
+  for (const b of document.querySelectorAll('#panel button')) b.classList.toggle('on', b.dataset.demo === name);
+  document.getElementById('note').innerHTML = demos[name].note;
+  history.replaceState(null, '', `?demo=${name}${linzKey ? `&linz=${linzKey}` : ''}`);
+}
+for (const b of document.querySelectorAll('#panel button')) b.onclick = () => {
+  select(b.dataset.demo);
+  map.setStyle(demos[current].style);
+  map.jumpTo(demos[current].view);
+};
+select(current);
+map.on('move', hud); map.on('load', hud);
+map.on('click', (e) => console.log('click', e.lngLat.toArray(), map.project(e.lngLat)));
+map.once('idle', () => { window.__demoReady = true; });
+window.map = map; window.maplibregl = maplibregl;
+</script>
+</body>
+</html>
