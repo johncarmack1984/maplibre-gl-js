@@ -50,6 +50,26 @@ type MercatorRay = {
     worldSize: number;
 };
 
+/**
+ * Projects the four corners of a lng/lat box and returns the world rectangle that contains them:
+ * the axis-aligned hull of the corners, which is exact for a cylindrical mapping and correct up to
+ * the curvature of the box edges for one where `x` and `y` both depend on `lng` and `lat`.
+ */
+function lngLatBoxToWorldBox(worldCoordinateHelper: WorldCoordinateHelper, west: number, south: number, east: number, north: number): {minX: number; minY: number; maxX: number; maxY: number} {
+    const corners = [
+        worldCoordinateHelper.worldFromLngLat(west, north),
+        worldCoordinateHelper.worldFromLngLat(east, north),
+        worldCoordinateHelper.worldFromLngLat(east, south),
+        worldCoordinateHelper.worldFromLngLat(west, south),
+    ];
+    return {
+        minX: Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x),
+        minY: Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y),
+        maxX: Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x),
+        maxY: Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y),
+    };
+}
+
 export class MercatorTransform implements ITransform {
     private _helper: TransformHelper;
 
@@ -232,6 +252,9 @@ export class MercatorTransform implements ITransform {
     get renderWorldCopies(): boolean {
         return this._helper.renderWorldCopies;
     }
+    get renderWorldCopiesSetting(): boolean {
+        return this._helper.renderWorldCopiesSetting;
+    }
     get cameraToCenterDistance(): number {
         return this._helper.cameraToCenterDistance;
     }
@@ -282,7 +305,7 @@ export class MercatorTransform implements ITransform {
     }
 
     public clone(): ITransform {
-        const clone = new MercatorTransform();
+        const clone = new MercatorTransform({worldCoordinateHelper: this.worldCoordinateHelper});
         clone.apply(this, false);
         return clone;
     }
@@ -303,7 +326,7 @@ export class MercatorTransform implements ITransform {
 
     getVisibleUnwrappedCoordinates(tileID: CanonicalTileID): UnwrappedTileID[] {
         const result = [new UnwrappedTileID(0, tileID)];
-        if (this._helper._renderWorldCopies) {
+        if (this._helper.renderWorldCopies) {
             const utl = this.screenPointToMercatorCoordinate(new Point(0, 0));
             const utr = this.screenPointToMercatorCoordinate(new Point(this._helper._width, 0));
             const ubl = this.screenPointToMercatorCoordinate(new Point(this._helper._width, this._helper._height));
@@ -358,7 +381,7 @@ export class MercatorTransform implements ITransform {
         this.setCenter(worldCoordinateHelper.lngLatFromWorld(
             loc.x - (a.x - b.x),
             loc.y - (a.y - b.y)));
-        if (this._helper._renderWorldCopies) {
+        if (this._helper.renderWorldCopies) {
             this.setCenter(this.center.wrap());
         }
     }
@@ -565,9 +588,11 @@ export class MercatorTransform implements ITransform {
      * 2) a given lngLat is as near the center as possible
      *
      * Bounds are those set by maxBounds or North & South "Poles" and, if only 1 globe is displayed, antimeridian.
+     * A non-wrapping world (a registered planar CRS) is constrained to its world square instead.
      */
     defaultConstrain: TransformConstrainFunction = (lngLat, zoom) => {
         zoom = clamp(+zoom, this.minZoom, this.maxZoom);
+        if (!this.worldCoordinateHelper.wraps) return this._constrainToWorldSquare(lngLat, zoom);
         const result = {
             center: new LngLat(lngLat.lng, lngLat.lat),
             zoom
@@ -656,6 +681,42 @@ export class MercatorTransform implements ITransform {
 
         return result;
     };
+
+    /**
+     * The constrain for a projection whose world does not wrap: the view may not leave the 0..1 world square
+     * (or the max bounds inside it, projected as a box since both world axes may depend on lng and lat),
+     * and the map zooms in until the constrained square fills the screen.
+     */
+    private _constrainToWorldSquare(lngLat: LngLat, zoom: number): {center: LngLat; zoom: number} {
+        const worldCoordinateHelper = this.worldCoordinateHelper;
+        const lngRange = this._helper._lngRange;
+        const latRange = this._helper._latRange;
+        const box = lngRange && latRange ?
+            lngLatBoxToWorldBox(worldCoordinateHelper, lngRange[0], latRange[0], lngRange[1], latRange[1]) :
+            {minX: 0, minY: 0, maxX: 1, maxY: 1};
+        const worldSize = this.tileSize * zoomScale(zoom);
+        const minX = Math.max(box.minX, 0) * worldSize;
+        const maxX = Math.min(box.maxX, 1) * worldSize;
+        const minY = Math.max(box.minY, 0) * worldSize;
+        const maxY = Math.min(box.maxY, 1) * worldSize;
+        const {x: screenWidth, y: screenHeight} = this.size;
+        const scaleX = maxX - minX < screenWidth ? screenWidth / (maxX - minX) : 0;
+        const scaleY = maxY - minY < screenHeight ? screenHeight / (maxY - minY) : 0;
+        const {x, y} = projectToWorldCoordinates(worldSize, lngLat, worldCoordinateHelper);
+
+        const scale = Math.max(scaleX, scaleY);
+        if (scale) {
+            const newPoint = new Point(scaleX ? (maxX + minX) / 2 : x, scaleY ? (maxY + minY) / 2 : y);
+            return {center: unprojectFromWorldCoordinates(worldSize, newPoint, worldCoordinateHelper), zoom: zoom + scaleZoom(scale)};
+        }
+
+        const constrainedX = clamp(x, minX + screenWidth / 2, maxX - screenWidth / 2);
+        const constrainedY = clamp(y, minY + screenHeight / 2, maxY - screenHeight / 2);
+        if (constrainedX !== x || constrainedY !== y) {
+            return {center: unprojectFromWorldCoordinates(worldSize, new Point(constrainedX, constrainedY), worldCoordinateHelper), zoom};
+        }
+        return {center: new LngLat(lngLat.lng, lngLat.lat), zoom};
+    }
 
     applyConstrain: TransformConstrainFunction = (lngLat, zoom) => {
         return this._helper.applyConstrain(lngLat, zoom);
