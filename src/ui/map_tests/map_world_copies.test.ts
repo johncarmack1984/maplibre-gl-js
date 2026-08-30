@@ -1,4 +1,4 @@
-import {describe, beforeEach, test, expect} from 'vitest';
+import {vi, describe, beforeEach, test, expect} from 'vitest';
 import {createMap, beforeMapTest} from '../../util/test/util.ts';
 
 beforeEach(() => {
@@ -104,24 +104,44 @@ describe('renderWorldCopies', () => {
 });
 
 describe('renderWorldCopies with a registered planar projection', () => {
-    test('reads false while the projection is active and ignores attempts to enable it', async () => {
+    test('reads false while the projection is active', async () => {
         const map = createMap({renderWorldCopies: true});
         await map.once('style.load');
 
         map.setProjection({type: 'simple'});
-        expect(map.getRenderWorldCopies()).toBe(false);
 
-        map.setRenderWorldCopies(true);
         expect(map.getRenderWorldCopies()).toBe(false);
     });
 
-    test.each([true, false])('keeps renderWorldCopies %s across a round trip through simple and back to mercator', async (renderWorldCopies) => {
-        const map = createMap({renderWorldCopies});
+    test('warns and stays false when enabled while the projection is active', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const map = createMap({renderWorldCopies: true});
+        await map.once('style.load');
+        map.setProjection({type: 'simple'});
+
+        map.setRenderWorldCopies(true);
+
+        expect(map.getRenderWorldCopies()).toBe(false);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('renderWorldCopies has no effect'));
+    });
+
+    test('keeps renderWorldCopies true across a round trip through simple and back to mercator', async () => {
+        const map = createMap({renderWorldCopies: true});
         await map.once('style.load');
 
         map.setProjection({type: 'simple'});
         map.setProjection({type: 'mercator'});
 
-        expect(map.getRenderWorldCopies()).toBe(renderWorldCopies);
+        expect(map.getRenderWorldCopies()).toBe(true);
+    });
+
+    test('keeps renderWorldCopies false across a round trip through simple and back to mercator', async () => {
+        const map = createMap({renderWorldCopies: false});
+        await map.once('style.load');
+
+        map.setProjection({type: 'simple'});
+        map.setProjection({type: 'mercator'});
+
+        expect(map.getRenderWorldCopies()).toBe(false);
     });
 });

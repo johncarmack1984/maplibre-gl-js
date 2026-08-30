@@ -17,7 +17,6 @@ describe('Map with a registered planar CRS', () => {
         await map.once('style.load');
 
         expect(map.getProjection()).toEqual({type: 'simple'});
-        expect(map.style.projection.name).toBe('simple');
     });
 
     test('does not clamp the initial center to mercator latitudes before a planar style loads', async () => {
@@ -27,7 +26,7 @@ describe('Map with a registered planar CRS', () => {
         expect(map.getCenter().lat).toBeCloseTo(89, 6);
     });
 
-    test('setProjection switches to a CRS registered with addProjection', async () => {
+    test('setProjection switches to a CRS registered with addProjection and projects through it', async () => {
         addProjection({
             name: 'map-test-crs',
             project: (lng, lat) => [lng, lat],
@@ -39,11 +38,13 @@ describe('Map with a registered planar CRS', () => {
 
         map.setProjection({type: 'map-test-crs'});
 
-        expect(map.style.projection.name).toBe('map-test-crs');
-        // In this CRS lng/lat 90,90 is world (0.75, 0.25); at zoom 0 the 512px world is centered in the 200px container.
-        const point = map.project([90, 90]);
-        expect(point.x).toBeCloseTo(0.75 * 512 - 156, 6);
-        expect(point.y).toBeCloseTo(0.25 * 512 - 156, 6);
+        expect(map.getProjection()).toEqual({type: 'map-test-crs'});
+        const worldSizeAtZoom0 = 512;
+        const worldOffsetInContainer = (worldSizeAtZoom0 - map.getContainer().clientWidth) / 2;
+        const worldFractionOfLngLat90 = {x: 0.75, y: 0.25};
+        const screenPoint = map.project([90, 90]);
+        expect(screenPoint.x).toBeCloseTo(worldFractionOfLngLat90.x * worldSizeAtZoom0 - worldOffsetInContainer, 6);
+        expect(screenPoint.y).toBeCloseTo(worldFractionOfLngLat90.y * worldSizeAtZoom0 - worldOffsetInContainer, 6);
     });
 
     test('returns to the CRS after a round trip through globe', async () => {
@@ -52,11 +53,10 @@ describe('Map with a registered planar CRS', () => {
 
         map.setProjection({type: 'simple'});
         map.setProjection({type: 'globe'});
-        expect(map.style.projection.name).toBe('globe');
+        expect(map.getProjection()).toEqual({type: 'globe'});
 
         map.setProjection({type: 'simple'});
         expect(map.getProjection()).toEqual({type: 'simple'});
-        expect(map.style.projection.name).toBe('simple');
     });
 
     test('constrains the center to the CRS square', async () => {
