@@ -11,7 +11,7 @@
   "zoom": 1,
   "projection": {"type": "simple"},
   "sources": {
-    "mapbox": {
+    "maplibre": {
       "type": "vector",
       "maxzoom": 0,
       "tiles": ["local://tiles/{z}-{x}-{y}.mvt"]
@@ -26,21 +26,21 @@
     {
       "id": "water",
       "type": "fill",
-      "source": "mapbox",
+      "source": "maplibre",
       "source-layer": "water",
       "paint": {"fill-color": "#4488cc"}
     },
     {
       "id": "landcover",
       "type": "fill",
-      "source": "mapbox",
+      "source": "maplibre",
       "source-layer": "landcover",
       "paint": {"fill-color": "#88cc88"}
     },
     {
       "id": "admin",
       "type": "line",
-      "source": "mapbox",
+      "source": "maplibre",
       "source-layer": "admin",
       "paint": {"line-color": "#333333", "line-width": 1}
     }
