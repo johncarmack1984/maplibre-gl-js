@@ -1,6 +1,7 @@
 import {SubdivisionGranularityExpression, SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import {type PreparedShader, shaders} from '../../shaders/shaders.ts';
 import {createTileMeshWithBuffers, type CreateTileMeshOptions} from '../../util/create_tile_mesh.ts';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 import type {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 import type {Mesh} from '../../render/mesh.ts';
@@ -59,6 +60,10 @@ export class VerticalPerspectiveProjection implements Projection {
 
     get subdivisionGranularity(): SubdivisionGranularitySetting {
         return granularitySettingsGlobe;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return mercatorTileMatrix;
     }
 
     get useGlobeControls(): boolean {

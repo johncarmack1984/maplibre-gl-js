@@ -5,6 +5,7 @@ import {Evented} from '../../util/evented.ts';
 import {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 import {MercatorProjection} from './mercator_projection.ts';
 import {VerticalPerspectiveProjection} from './vertical_perspective_projection.ts';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 import type {Projection, TileMeshUsage} from './projection.ts';
 import type {PreparedShader} from '../../shaders/shaders.ts';
@@ -87,6 +88,10 @@ export class GlobeProjection extends Evented implements Projection {
 
     get subdivisionGranularity(): SubdivisionGranularitySetting {
         return this.currentProjection.subdivisionGranularity;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return mercatorTileMatrix;
     }
 
     get useGlobeControls(): boolean {

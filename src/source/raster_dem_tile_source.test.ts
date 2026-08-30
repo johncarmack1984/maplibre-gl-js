@@ -4,6 +4,7 @@ import {fakeServer, type FakeServer} from 'nise';
 import {RasterDEMTileSource} from './raster_dem_tile_source.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {RequestManager} from '../util/request_manager.ts';
+import {mercatorTileMatrix} from '../geo/projection/tile_matrix.ts';
 import {ImageRequest} from '../util/image_request.ts';
 import {getMockDispatcher} from '../util/test/util.ts';
 import {sleep, waitForEvent, waitForMetadataEvent} from '../util/test/util.ts';
@@ -18,7 +19,8 @@ function createSource(options, transformCallback?) {
         _getMapId: () => 1,
         _requestManager: new RequestManager(transformCallback),
         getPixelRatio() { return 1; },
-        _worldCoordinateHelper: mercatorWorldCoordinateHelper
+        _worldCoordinateHelper: mercatorWorldCoordinateHelper,
+        style: {projection: {tileMatrix: mercatorTileMatrix}}
     } as any);
 
     source.on('error', (e) => {
