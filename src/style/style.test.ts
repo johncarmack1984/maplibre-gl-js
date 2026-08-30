@@ -16,7 +16,7 @@ import {Color, type Feature, type LayerSpecification, type GeoJSONSourceSpecific
 import {StubMap, sleep, waitForEvent} from '../util/test/util.ts';
 import {setNow, restoreNow} from '../util/time_control.ts';
 import {RTLPluginLoadedEventName} from '../source/rtl_text_plugin_status.ts';
-import {MessageType} from '../util/actor_messages.ts';
+import {type ActorMessage, MessageType} from '../util/actor_messages.ts';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
 
 import type {PossiblyEvaluated} from './properties.ts';
@@ -240,7 +240,7 @@ describe('Style.loadJSON', () => {
     });
 
     test('loads a style whose filter mixes legacy and expression syntax, warning instead of blanking the map', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const errorSpy = vi.fn();
         style.on('error', errorSpy);
@@ -740,6 +740,26 @@ describe('Style._load', () => {
         style._load(styleSpec, {validate: false});
         expect(style.projection.name).toBe('mercator');
         expect(style.serialize().projection).toBeUndefined();
+    });
+
+    test('a geojson source added on load is sent pre-projected for the style projection', async () => {
+        const style = createStyle();
+        const actors = await style.dispatcher.actorsPromise;
+        const sendAsync = vi.fn((_message: ActorMessage<MessageType>) => Promise.resolve({}));
+        for (const actor of actors) actor.sendAsync = sendAsync;
+        const point: GeoJSON.Feature<GeoJSON.Point> = {type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [45, 45]}};
+        style.loadJSON(createStyleJSON({
+            projection: {type: 'simple'},
+            sources: {geojson: {type: 'geojson', data: point}}
+        }));
+        await style.once('style.load');
+        const loadData = await vi.waitFor(() => {
+            const message = sendAsync.mock.calls.map(call => call[0]).find(message => message.type === MessageType.loadData);
+            expect(message).toBeDefined();
+            return message as ActorMessage<MessageType.loadData>;
+        });
+        const pseudoLngLatOf45InTheSimpleCrs = [90, expect.closeTo(66.51326, 4)];
+        expect((loadData.data.data as GeoJSON.Feature<GeoJSON.Point>).geometry.coordinates).toEqual(pseudoLngLatOf45InTheSimpleCrs);
     });
 });
 
@@ -2997,7 +3017,7 @@ describe('Style.moveLayer', () => {
 
 describe('Style.setPaintProperty', () => {
     test('#4738 postpones source reload until layers have been broadcast to workers', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON(extend(createStyleJSON(), {
             'sources': {
                 'geojson': {
@@ -3156,7 +3176,7 @@ describe('Style.setLayoutProperty', () => {
     });
 
     test('respects validate option', async () => {
-        const style = new Style(getStubMap());
+        const style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
@@ -3235,7 +3255,9 @@ describe('Style.setFilter', () => {
     });
 
     function createStyle() {
-        const style = new Style(getStubMap());
+        const map = getStubMap();
+        const style = new Style(map);
+        map.style = style;
         style.loadJSON({
             version: 8,
             sources: {
@@ -3711,7 +3733,7 @@ describe('Style.query*Features', () => {
     beforeEach(() => new Promise<void>(callback => {
         transform = new MercatorTransform();
         transform.resize(100, 100);
-        style = new Style(getStubMap());
+        style = createStyle();
         style.loadJSON({
             'version': 8,
             'sources': {
