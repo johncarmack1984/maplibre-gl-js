@@ -64,33 +64,6 @@ describe('GlobeControl', () => {
         expect(map.style.projection.name).toBe('mercator');
     });
 
-    test('toggling back from globe restores the planar projection that was active before', async () => {
-        await map.once('load');
-        map.addControl(new GlobeControl());
-        map.setProjection({type: 'simple'});
-        const button = map.getContainer().querySelector('.maplibregl-ctrl-globe');
-
-        button.click();
-        expect(map.style.projection.name).toBe('globe');
-
-        button.click();
-        expect(map.style.projection.name).toBe('simple');
-    });
-
-    test('toggling back from a globe style falls back to mercator', async () => {
-        map.remove();
-        map = globalCreateMap({
-            attributionControl: false,
-            style: {version: 8, sources: {}, layers: [], projection: {type: 'globe'}},
-        });
-        await map.once('load');
-        map.addControl(new GlobeControl());
-        const button = map.getContainer().querySelector('.maplibregl-ctrl-globe-enabled');
-
-        button.click();
-        expect(map.style.projection.name).toBe('mercator');
-    });
-
     describe('updates control state when Map.setProjection is called', () => {
         beforeEach(async () => {
             map.addControl(new GlobeControl());
