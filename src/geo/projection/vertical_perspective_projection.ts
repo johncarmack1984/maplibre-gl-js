@@ -6,6 +6,7 @@ import type {Projection, TileMeshUsage} from './projection.ts';
 import {type PreparedShader, shaders} from '../../shaders/shaders.ts';
 import {createTileMeshWithBuffers, type CreateTileMeshOptions} from '../../util/create_tile_mesh.ts';
 import {type EvaluationParameters} from '../../style/evaluation_parameters.ts';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 export const VerticalPerspectiveShaderDefine = '#define GLOBE';
 export const VerticalPerspectiveShaderVariantKey = 'globe';
@@ -62,6 +63,10 @@ export class VerticalPerspectiveProjection implements Projection {
 
     get isPlanar(): boolean {
         return false;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return mercatorTileMatrix;
     }
 
     get useGlobeControls(): boolean {
