@@ -1,4 +1,4 @@
-import {describe, test, expect, vi, beforeEach} from 'vitest';
+import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
 import {Tile} from '../tile/tile.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {GeoJSONSource, type GeoJSONSourceShouldReloadTileOptions, type GeoJSONSourceOptions} from './geojson_source.ts';
@@ -7,19 +7,31 @@ import {LngLat} from '../geo/lng_lat.ts';
 import {extend} from '../util/util.ts';
 import {SubdivisionGranularitySetting} from '../render/subdivision_granularity_settings.ts';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
-import {mercatorWorldCoordinateHelper} from '../geo/mercator_coordinate.ts';
 import {getWrapDispatcher, sleep, waitForEvent} from '../util/test/util.ts';
 import {AbortError} from '../util/abort_error.ts';
 import {type ActorMessage, type ClusterIDAndSource, type GeoJSONWorkerSourceLoadDataResult, MessageType} from '../util/actor_messages.ts';
 import {CrsWorldCoordinateHelper, simpleCrs} from '../geo/projection/crs.ts';
+import {mercatorWorldCoordinateHelper, latFromMercatorY} from '../geo/mercator_coordinate.ts';
+import {fakeServer, type FakeServer} from 'nise';
 
 import type {IReadonlyTransform} from '../geo/transform_interface.ts';
 import type {RequestManager} from '../util/request_manager.ts';
 import type {MapSourceDataEvent} from '../ui/events.ts';
 import type {GeoJSONSourceDiff, UpdateableGeoJSON} from './geojson_source_diff.ts';
+import type {WorldCoordinateHelper} from '../geo/transform_interface.ts';
 import type {Map} from '../ui/map.ts';
 
 const wrapDispatcher = getWrapDispatcher();
+
+function createMapWithProjection(worldCoordinateHelper: WorldCoordinateHelper): Map {
+    return {
+        _requestManager: {transformRequest: (url: string) => ({url})},
+        _worldCoordinateHelper: worldCoordinateHelper,
+        style: {projection: {subdivisionGranularity: SubdivisionGranularitySetting.noSubdivision}},
+        getPixelRatio: () => 1,
+        showCollisionBoxes: false
+    } as any as Map;
+}
 
 const mockDispatcher = wrapDispatcher({
     sendAsync() { return Promise.resolve({}); }
@@ -93,13 +105,15 @@ describe('GeoJSONSource.setData', () => {
     function createSource(opts?) {
         opts ||= {};
         opts = extend(opts, {data: {}});
-        return new GeoJSONSource('id', opts, wrapDispatcher({
+        const source = new GeoJSONSource('id', opts, wrapDispatcher({
             sendAsync(_message) {
                 return new Promise((resolve) => {
                     setTimeout(() => resolve({}), 0);
                 });
             }
         }), undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
+        return source;
     }
 
     test('fires "data" event', async () => {
@@ -128,6 +142,7 @@ describe('GeoJSONSource.setData', () => {
                 });
             }
         }), undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         const promise = source.once('dataabort');
         source.load();
         await expect(promise).resolves.toBeDefined();
@@ -150,7 +165,8 @@ describe('GeoJSONSource.setData', () => {
         source.map = {
             _requestManager: {
                 transformRequest: (url:string) => ({url})
-            } as any as RequestManager
+            } as any as RequestManager,
+            _worldCoordinateHelper: mercatorWorldCoordinateHelper
         } as any;
         source.setData('http://localhost/nonexistent');
         await sleep(0);
@@ -173,7 +189,8 @@ describe('GeoJSONSource.setData', () => {
         source.map = {
             _requestManager: {
                 transformRequest: async (url: string) => ({url})
-            } as any as RequestManager
+            } as any as RequestManager,
+            _worldCoordinateHelper: mercatorWorldCoordinateHelper
         } as any;
         await source.setData('http://localhost/nonexistent');
         expect(spy).toHaveBeenCalledTimes(1);
@@ -201,6 +218,7 @@ describe('GeoJSONSource.setData', () => {
                 });
             }
         }), undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         const firstPromise = source.setData({} as GeoJSON.GeoJSON);
         const secondPromise = source.setData({} as GeoJSON.GeoJSON);
@@ -235,6 +253,7 @@ describe('GeoJSONSource.setData', () => {
                 });
             }
         }), undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         const promise = waitForEvent(source, 'dataabort', () => true);
         source.setData({} as GeoJSON.GeoJSON);
         await promise;
@@ -315,6 +334,7 @@ describe('GeoJSONSource.onRemove', () => {
                 return Promise.resolve({});
             }
         }), undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.onRemove();
         await sleep(0);
         expect(spy).toHaveBeenCalledTimes(1);
@@ -340,7 +360,9 @@ describe('GeoJSONSource.update', () => {
             }
         });
 
-        new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined).load();
+        const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
+        source.load();
         await sleep(0);
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy.mock.calls[0][0].type).toBe(MessageType.loadData);
@@ -355,13 +377,15 @@ describe('GeoJSONSource.update', () => {
             }
         });
 
-        new GeoJSONSource('id', {
+        const source = new GeoJSONSource('id', {
             data: {},
             maxzoom: 10,
             tolerance: 0.25,
             buffer: 16,
             generateId: true
-        } as GeoJSONSourceOptions, mockDispatcher, undefined).load();
+        } as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
+        source.load();
         await sleep(0);
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy.mock.calls[0][0].type).toBe(MessageType.loadData);
@@ -402,6 +426,7 @@ describe('GeoJSONSource.update', () => {
             clusterMinPoints: 3,
             generateId: true
         } as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.load();
         await sleep(0);
         expect(spy).toHaveBeenCalledTimes(1);
@@ -434,6 +459,7 @@ describe('GeoJSONSource.update', () => {
             clusterMinPoints: 3,
             generateId: true
         }, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Wait for initial data to be loaded
         source.load();
@@ -468,6 +494,7 @@ describe('GeoJSONSource.update', () => {
             clusterMinPoints: 3,
             generateId: true
         }, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Wait for initial data to be loaded
         source.load();
@@ -533,6 +560,7 @@ describe('GeoJSONSource.update', () => {
             clusterMinPoints: 3,
             generateId: true
         }, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Wait for initial data to be loaded
         source.load();
@@ -574,6 +602,7 @@ describe('GeoJSONSource.update', () => {
             clusterMinPoints: 3,
             generateId: true
         } as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.load();
         await sleep(0);
         expect(spy).toHaveBeenCalled();
@@ -592,7 +621,8 @@ describe('GeoJSONSource.update', () => {
         const mapStub = {
             _requestManager: {
                 transformRequest: (url: string) => ({url})
-            }
+            },
+            _worldCoordinateHelper: mercatorWorldCoordinateHelper
         } as any;
         const transformSpy = vi.spyOn(mapStub._requestManager, 'transformRequest');
         const source = new GeoJSONSource('id', {data: 'https://example.com/data.geojson'} as GeoJSONSourceOptions, mockDispatcher, undefined);
@@ -605,7 +635,7 @@ describe('GeoJSONSource.update', () => {
         const source = new GeoJSONSource('id', {data: 'https://example.com/data.geojson'} as GeoJSONSourceOptions, wrapDispatcher({
             sendAsync() { return Promise.resolve({data: hawkHill}); }
         }), undefined);
-        source.map = {_requestManager: {transformRequest: (url: string) => ({url})}} as any;
+        source.map = {_requestManager: {transformRequest: (url: string) => ({url})}, _worldCoordinateHelper: mercatorWorldCoordinateHelper} as any;
 
         const promise = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
         source.load();
@@ -628,7 +658,8 @@ describe('GeoJSONSource.update', () => {
                     url,
                     headers: {Authorization: 'Bearer token'}
                 })
-            }
+            },
+            _worldCoordinateHelper: mercatorWorldCoordinateHelper
         } as any;
         await source.load();
         expect(spy).toHaveBeenCalled();
@@ -648,6 +679,7 @@ describe('GeoJSONSource.update', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         const promise = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
 
@@ -667,6 +699,7 @@ describe('GeoJSONSource.update', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         const promise = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
 
@@ -684,6 +717,7 @@ describe('GeoJSONSource.update', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         const promise = waitForEvent(source, 'error', () => true);
 
@@ -738,7 +772,8 @@ describe('GeoJSONSource.getData', () => {
     const mapStub = {
         _requestManager: {
             transformRequest: (url: string) => ({url})
-        }
+        },
+        _worldCoordinateHelper: mercatorWorldCoordinateHelper
     } as any;
     test('gets the data when passed as a geojson object', async () => {
         const source = new GeoJSONSource('id', {data: hawkHill} as GeoJSONSourceOptions, mockDispatcher, undefined);
@@ -759,6 +794,7 @@ describe('GeoJSONSource.getData', () => {
 
     test('returns added features from getData when updateData is called immediately after initialization', async () => {
         const source = new GeoJSONSource('id', {data: {type: 'FeatureCollection', features: []}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.load();
 
         const diff: GeoJSONSourceDiff = {
@@ -787,6 +823,7 @@ describe('GeoJSONSource.getData', () => {
         };
 
         const source = new GeoJSONSource('id', {data: initialData} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.load();
         await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
 
@@ -817,6 +854,7 @@ describe('GeoJSONSource.updateData', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Wait for initial data to be loaded
         source.load();
@@ -855,6 +893,7 @@ describe('GeoJSONSource.updateData', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Perform an initial setData
         const data1 = {type: 'FeatureCollection', features: []} satisfies GeoJSON.GeoJSON;
@@ -899,6 +938,7 @@ describe('GeoJSONSource.updateData', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Perform an initial setData
         const data1 = {type: 'FeatureCollection', features: []} satisfies GeoJSON.GeoJSON;
@@ -937,6 +977,7 @@ describe('GeoJSONSource.updateData', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Perform an initial setData
         const data1 = {type: 'FeatureCollection', features: []} satisfies GeoJSON.GeoJSON;
@@ -974,6 +1015,7 @@ describe('GeoJSONSource.updateData', () => {
         };
 
         const source = new GeoJSONSource('id', {data: initialData} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.load();
         await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
 
@@ -1067,6 +1109,7 @@ describe('GeoJSONSource.serialize', () => {
 
     test('serialize source with additional options', () => {
         const source = new GeoJSONSource('id', {data: {}, cluster: true} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         expect(source.serialize()).toEqual({
             type: 'geojson',
             data: {},
@@ -1089,6 +1132,7 @@ describe('GeoJSONSource.load', () => {
         });
 
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         // Wait for initial data to be loaded
         source.load();
@@ -1112,6 +1156,7 @@ describe('GeoJSONSource.applyDiff', () => {
         };
 
         const source = new GeoJSONSource('id', {data: initialData} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         source.load();
         await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
 
@@ -1313,6 +1358,7 @@ describe('GeoJSONSource.getClusterExpansionZoom', () => {
             sendAsync: spy.mockResolvedValue({})
         });
         const source = new GeoJSONSource('id', {data: {}, cluster: true} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         await source.getClusterExpansionZoom(1);
 
         expect(spy).toHaveBeenCalledTimes(1);
@@ -1329,6 +1375,7 @@ describe('GeoJSONSource.getClusterChildren', () => {
             sendAsync: spy.mockResolvedValue({})
         });
         const source = new GeoJSONSource('id', {data: {}, cluster: true} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         await source.getClusterChildren(1);
 
         expect(spy).toHaveBeenCalledTimes(1);
@@ -1345,6 +1392,7 @@ describe('GeoJSONSource.getClusterLeaves', () => {
             sendAsync: spy.mockResolvedValue({})
         });
         const source = new GeoJSONSource('id', {data: {}, cluster: true} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         await source.getClusterLeaves(1, 0, 1);
 
         expect(spy).toHaveBeenCalledTimes(1);
@@ -1363,6 +1411,7 @@ describe('GeoJSONSource.getClusterOptions', () => {
             clusterMaxZoom: 12,
             clusterRadius: 80
         }, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         expect(source.getClusterOptions()).toEqual({cluster: true, clusterMaxZoom: 12, clusterRadius: 80});
     });
@@ -1373,10 +1422,230 @@ describe('GeoJSONSource.getClusterOptions', () => {
             data: {} as GeoJSON.GeoJSON,
             cluster: false
         }, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
 
         const options = {cluster: true, clusterMaxZoom: 9, clusterRadius: 40};
         await source.setClusterOptions(options);
 
         expect(source.getClusterOptions()).toEqual(options);
+    });
+});
+
+describe('GeoJSONSource in a planar projection', () => {
+    function createSimpleHelper(): WorldCoordinateHelper {
+        return new CrsWorldCoordinateHelper(simpleCrs);
+    }
+
+    /** lng/lat 45/45 is world (0.75, 0.25) in the simple CRS; mercator puts that world position at this lng/lat. */
+    function pseudoLngLatOf45(): GeoJSON.Position {
+        return [90, latFromMercatorY(0.25)];
+    }
+
+    function createPointData(): GeoJSON.FeatureCollection {
+        return {
+            type: 'FeatureCollection',
+            features: [{type: 'Feature', id: 1, properties: {name: 'p'}, geometry: {type: 'Point', coordinates: [45, 45]}}]
+        };
+    }
+
+    function createSpiedSource(options: GeoJSONSourceOptions, map: Map, respond: (message: ActorMessage<MessageType>) => any) {
+        const spy = vi.fn();
+        const source = new GeoJSONSource('id', options, wrapDispatcher({
+            sendAsync(message: ActorMessage<MessageType>) {
+                spy(message);
+                return Promise.resolve(respond(message));
+            }
+        }), undefined);
+        source.map = map;
+        return {source, spy};
+    }
+
+    function expectPseudo(coordinates: GeoJSON.Position) {
+        const pseudo = pseudoLngLatOf45();
+        expect(coordinates[0]).toBeCloseTo(pseudo[0], 9);
+        expect(coordinates[1]).toBeCloseTo(pseudo[1], 9);
+    }
+
+    test('sends object data pre-projected and keeps the original', async () => {
+        const data = createPointData();
+        const {source, spy} = createSpiedSource({data} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), () => ({}));
+        const loaded = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        source.load();
+        await loaded;
+
+        const sent = spy.mock.calls[0][0].data.data as GeoJSON.FeatureCollection;
+        expect(sent).not.toBe(data);
+        expectPseudo((sent.features[0].geometry as GeoJSON.Point).coordinates);
+        expect((data.features[0].geometry as GeoJSON.Point).coordinates).toEqual([45, 45]);
+        expect(source.serialize().data).toBe(data);
+    });
+
+    test('sends mercator data as is', async () => {
+        const data = createPointData();
+        const {source, spy} = createSpiedSource({data} as GeoJSONSourceOptions, createMapWithProjection(mercatorWorldCoordinateHelper), () => ({}));
+        const loaded = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        source.load();
+        await loaded;
+        expect(spy.mock.calls[0][0].data.data).toBe(data);
+    });
+
+    describe('url data', () => {
+        let server: FakeServer;
+        beforeEach(() => {
+            global.fetch = null;
+            server = fakeServer.create();
+            server.respondImmediately = true;
+        });
+        afterEach(() => {
+            server.restore();
+        });
+
+        test('is fetched on the main thread and sent pre-projected', async () => {
+            const data = createPointData();
+            server.respondWith('/data.geojson', JSON.stringify(data));
+            const {source, spy} = createSpiedSource({data: '/data.geojson'} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), () => ({}));
+            const loaded = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+            source.load();
+            await loaded;
+
+            const params = spy.mock.calls[0][0].data;
+            expect(params.request).toBeUndefined();
+            expectPseudo((params.data.features[0].geometry as GeoJSON.Point).coordinates);
+            expect(source.serialize().data).toEqual(data);
+            await expect(source.getData()).resolves.toEqual(data);
+        });
+
+        test('is left to the worker for mercator', async () => {
+            const {source, spy} = createSpiedSource({data: '/data.geojson'} as GeoJSONSourceOptions, createMapWithProjection(mercatorWorldCoordinateHelper), () => ({}));
+            const loaded = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+            source.load();
+            await loaded;
+            expect(spy.mock.calls[0][0].data.request).toEqual({url: 'http://localhost/data.geojson', collectResourceTiming: undefined});
+            expect(spy.mock.calls[0][0].data.data).toBeUndefined();
+            expect(server.requests).toHaveLength(0);
+        });
+
+        test('reports a failed fetch as an error event', async () => {
+            server.respondWith('/missing.geojson', [404, {}, '']);
+            const {source} = createSpiedSource({data: '/missing.geojson'} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), () => ({}));
+            const error = source.once('error');
+            source.load();
+            await expect(error).resolves.toBeDefined();
+        });
+
+        test('keeps resource timing for the main-thread fetch', async () => {
+            server.respondWith('/data.geojson', JSON.stringify(createPointData()));
+            const {source} = createSpiedSource({data: '/data.geojson', collectResourceTiming: true} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), () => ({}));
+            const loaded = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+            source.load();
+            const event = await loaded;
+            expect(event.resourceTiming).toHaveLength(1);
+            expect(event.resourceTiming[0].name).toBe('http://localhost/data.geojson');
+        });
+    });
+
+    test('pre-projects added features and new geometries of a diff', async () => {
+        const {source, spy} = createSpiedSource({data: {type: 'FeatureCollection', features: []}} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), () => ({}));
+        source.load();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        spy.mockClear();
+
+        const diff: GeoJSONSourceDiff = {
+            remove: ['1'],
+            add: [{id: '2', type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [45, 45]}}],
+            update: [
+                {id: '3', newGeometry: {type: 'Point', coordinates: [45, 45]}},
+                {id: '4', addOrUpdateProperties: [{key: 'a', value: 1}]}
+            ]
+        };
+        await source.updateData(diff);
+
+        const sent = spy.mock.calls[0][0].data.dataDiff as GeoJSONSourceDiff;
+        expect(sent.remove).toEqual(['1']);
+        expectPseudo((sent.add[0].geometry as GeoJSON.Point).coordinates);
+        expectPseudo((sent.update[0].newGeometry as GeoJSON.Point).coordinates);
+        expect(sent.update[1]).toBe(diff.update[1]);
+        expect((diff.add[0].geometry as GeoJSON.Point).coordinates).toEqual([45, 45]);
+    });
+
+    test('applies a diff to its own data in real lng/lat', async () => {
+        const {source} = createSpiedSource({data: {type: 'FeatureCollection', features: []}} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), () => ({}));
+        source.load();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+
+        const content = waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'content');
+        await source.updateData({add: [{id: '2', type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [45, 45]}}]});
+
+        const data = await source.getData() as GeoJSON.FeatureCollection;
+        expect((data.features[0].geometry as GeoJSON.Point).coordinates).toEqual([45, 45]);
+        const {shouldReloadTileOptions} = await content;
+        expect(shouldReloadTileOptions.affectedBounds[0].toArray()).toEqual([[45, 45], [45, 45]]);
+    });
+
+    test('maps cluster children and leaves back to the map lng/lat', async () => {
+        const workerFeature = (): GeoJSON.Feature => ({type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: pseudoLngLatOf45()}});
+        const {source} = createSpiedSource({data: createPointData()} as GeoJSONSourceOptions, createMapWithProjection(createSimpleHelper()), (message) => {
+            if (message.type === MessageType.getClusterChildren || message.type === MessageType.getClusterLeaves) return [workerFeature()];
+            return {};
+        });
+        source.load();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+
+        for (const features of [await source.getClusterChildren(1), await source.getClusterLeaves(1, 10, 0)]) {
+            const coordinates = (features[0].geometry as GeoJSON.Point).coordinates;
+            expect(coordinates[0]).toBeCloseTo(45, 9);
+            expect(coordinates[1]).toBeCloseTo(45, 9);
+        }
+    });
+
+    test('does not resend the data for a projection change that keeps the world mapping, like mercator to globe', async () => {
+        const data = createPointData();
+        const map = createMapWithProjection(mercatorWorldCoordinateHelper);
+        const {source, spy} = createSpiedSource({data} as GeoJSONSourceOptions, map, () => ({}));
+        source.load();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        expect(spy).toHaveBeenCalledTimes(1);
+
+        source.reloadForProjection();
+        await sleep(0);
+
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    test('resends the data pre-projected when the projection becomes planar and as is when it goes back to mercator', async () => {
+        const data = createPointData();
+        const map = createMapWithProjection(mercatorWorldCoordinateHelper);
+        const {source, spy} = createSpiedSource({data} as GeoJSONSourceOptions, map, () => ({}));
+        source.load();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        expect(spy).toHaveBeenCalledTimes(1);
+
+        (map as any)._worldCoordinateHelper = createSimpleHelper();
+        source.reloadForProjection();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        expect(spy).toHaveBeenCalledTimes(2);
+        expectPseudo((spy.mock.calls[1][0].data.data.features[0].geometry as GeoJSON.Point).coordinates);
+
+        (map as any)._worldCoordinateHelper = mercatorWorldCoordinateHelper;
+        source.reloadForProjection();
+        await waitForEvent(source, 'data', (e: MapSourceDataEvent) => e.sourceDataType === 'metadata');
+        expect(spy).toHaveBeenCalledTimes(3);
+        expect(spy.mock.calls[2][0].data.data).toBe(data);
+    });
+
+    test('keeps a diff that is still waiting for the worker when the projection changes', async () => {
+        const map = createMapWithProjection(mercatorWorldCoordinateHelper);
+        const {source, spy} = createSpiedSource({data: {type: 'FeatureCollection', features: []}} as GeoJSONSourceOptions, map, () => ({}));
+        source.load();
+        source.updateData({add: [{id: '1', type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [45, 45]}}]});
+        (map as any)._worldCoordinateHelper = createSimpleHelper();
+        source.reloadForProjection();
+        await vi.waitFor(() => expect(source.loaded()).toBe(true));
+
+        const sent = spy.mock.calls.map(call => call[0].data);
+        expect(sent.map(params => params.dataDiff ? 'diff' : 'data')).toEqual(['data', 'data', 'diff']);
+        expectPseudo((sent[2].dataDiff.add[0].geometry as GeoJSON.Point).coordinates);
+        const data = await source.getData() as GeoJSON.FeatureCollection;
+        expect((data.features[0].geometry as GeoJSON.Point).coordinates).toEqual([45, 45]);
     });
 });
