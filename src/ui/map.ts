@@ -1995,6 +1995,9 @@ export class Map extends Evented<MapEventType> {
      * @see [Render world copies](https://maplibre.org/maplibre-gl-js/docs/examples/render-world-copies/)
      */
     setRenderWorldCopies(renderWorldCopies?: boolean | null): this {
+        if (renderWorldCopies !== false && renderWorldCopies !== null && !this._camera.transform.worldCoordinateHelper.wraps) {
+            warnOnce('renderWorldCopies has no effect in a projection whose world does not wrap.');
+        }
         this._camera.transform.setRenderWorldCopies(renderWorldCopies);
         return this._update();
     }
