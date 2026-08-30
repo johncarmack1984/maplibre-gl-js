@@ -48,6 +48,7 @@ type MercatorRay = {
     dy: number;
     dz: number;
     worldSize: number;
+    wraps: boolean;
 };
 
 export class MercatorTransform implements ITransform {
@@ -406,7 +407,7 @@ export class MercatorTransform implements ITransform {
         const dx = far[0] - near[0];
         const dy = far[1] - near[1];
         const dz = far[2] - near[2];
-        const ray: MercatorRay = {index, exaggeration: terrain.exaggeration, near, dx, dy, dz, worldSize};
+        const ray: MercatorRay = {index, exaggeration: terrain.exaggeration, near, dx, dy, dz, worldSize, wraps: this.worldCoordinateHelper.wraps};
 
         let tStart = 0;
         let tEnd = 1;
@@ -989,7 +990,7 @@ export class MercatorTransform implements ITransform {
 }
 
 function mercatorSampleAt(ray: MercatorRay, t: number): TerrainSample {
-    return sampleAt(ray.index, ray.exaggeration, (ray.near[0] + t * ray.dx) / ray.worldSize, (ray.near[1] + t * ray.dy) / ray.worldSize);
+    return sampleAt(ray.index, ray.exaggeration, (ray.near[0] + t * ray.dx) / ray.worldSize, (ray.near[1] + t * ray.dy) / ray.worldSize, ray.wraps);
 }
 
 function mercatorIsBelowTerrain(ray: MercatorRay, t: number): boolean {

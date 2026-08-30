@@ -80,6 +80,14 @@ describe('render', () => {
         expect(painter.getTerrainDataForTile(tileID, true)).toBe(terrainData);
         expect(getTerrainData).toHaveBeenCalledWith(tileID);
     });
+
+    test('skips terrain data for render-to-texture draws in a registered planar projection', () => {
+        const {tileID, getTerrainData} = mockTerrainData();
+        style._setProjectionInternal('simple');
+
+        expect(painter.getTerrainDataForTile(tileID, true)).toBeNull();
+        expect(getTerrainData).not.toHaveBeenCalled();
+    });
     describe('terrain render time', () => {
         beforeEach(() => {
             vi.spyOn(painter.drawFunctions, 'terrainDepth').mockImplementation(() => {});

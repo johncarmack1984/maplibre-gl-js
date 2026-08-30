@@ -4,7 +4,8 @@ import {MapSourceDataEvent, type SourceEventType} from '../ui/events.ts';
 import {ImageRequest} from '../util/image_request.ts';
 import {ResourceType} from '../util/request_manager.ts';
 import {Texture} from '../webgl/texture.ts';
-import {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
+import type {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
+import {LngLat} from '../geo/lng_lat.ts';
 
 import type {Source} from './source.ts';
 import type {CanvasSourceSpecification} from './canvas_source.ts';
@@ -422,16 +423,22 @@ export class ImageSource extends Evented<SourceEventType> implements Source {
         // and create a buffer with the corner coordinates. These coordinates
         // may be outside the tile, because raster tiles aren't clipped when rendering.
 
-        // transform the geo coordinates into (zoom 0) tile space coordinates
-        const cornerCoords = coordinates.map(MercatorCoordinate.fromLngLat);
+        // transform the geo coordinates into (zoom 0) tile space coordinates of the map's projection;
+        // `MercatorCoordinate` is the 0..1 world-square container the tile code takes, and for a planar CRS
+        // it holds that CRS's world position
+        const worldCoordinateHelper = this.map._camera.transform.worldCoordinateHelper;
+        const cornerWorldCoords = coordinates.map(coordinate => {
+            const lngLat = LngLat.convert(coordinate);
+            return worldCoordinateHelper.worldFromLngLat(lngLat.lng, lngLat.lat);
+        });
 
         // Compute the coordinates of the tile we'll use to hold this image's
         // render data
-        this.tileID = getCoordinatesCenterTileID(cornerCoords);
+        this.tileID = getCoordinatesCenterTileID(cornerWorldCoords);
 
         // Compute tiles overlapping with the image. We need to know for which
         // terrain tiles we have to render the image.
-        this.terrainTileRanges = this._getOverlappingTileRanges(cornerCoords);
+        this.terrainTileRanges = this._getOverlappingTileRanges(cornerWorldCoords);
 
         // Constrain min/max zoom to our tile's zoom level in order to force
         // TileManager to request this tile (no matter what the map's zoom
@@ -440,7 +447,7 @@ export class ImageSource extends Evented<SourceEventType> implements Source {
 
         // Transform the corner coordinates into the coordinate space of our
         // tile.
-        this.tileCoords = cornerCoords.map((coord) => this.tileID.getTilePoint(coord)._round());
+        this.tileCoords = cornerWorldCoords.map((coord) => this.tileID.getTilePoint(coord)._round());
         this.imageWarp = calculateImageWarp(this.tileCoords, this._warp);
         // A purely projective warp survives a pair of triangles, because its straight lines are
         // straight in both, and so does any warp of a parallelogram, which is affine either way.

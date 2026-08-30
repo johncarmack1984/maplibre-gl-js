@@ -480,6 +480,8 @@ export class Style extends Evented<MapEventType> {
         this._loaded = true;
         this.stylesheet = nextState;
 
+        this._setProjectionInternal(this.stylesheet.projection?.type || 'mercator');
+
         for (const id in nextState.sources) {
             this.addSource(id, nextState.sources[id], {validate: false});
         }
@@ -494,7 +496,6 @@ export class Style extends Evented<MapEventType> {
         this._createLayers();
 
         this.light = new Light(this.stylesheet.light ?? {}, this._globalState);
-        this._setProjectionInternal(this.stylesheet.projection?.type || 'mercator');
 
         this.sky = new Sky(this.stylesheet.sky, this._globalState);
 
@@ -1658,7 +1659,8 @@ export class Style extends Evented<MapEventType> {
             this._validate(validateStyle.filter, 'querySourceFeatures.filter', params.filter, null, params);
         }
         const tileManager = this.tileManagers[sourceID];
-        return tileManager ? querySourceFeatures(tileManager, params ? {...params, globalState: this._globalState} : {globalState: this._globalState}) : [];
+        const paramsStrict = {...params, globalState: this._globalState, worldCoordinateHelper: this.map._camera.transform.worldCoordinateHelper};
+        return tileManager ? querySourceFeatures(tileManager, paramsStrict) : [];
     }
 
     getLight(): LightSpecification {
@@ -1746,6 +1748,10 @@ export class Style extends Evented<MapEventType> {
         this.sky.updateTransitions(parameters);
     }
 
+    /**
+     * Creates the projection and migrates the map to its transform. Sources read the transform's world coordinate
+     * helper when they are added, so this runs before the sources are added on style load.
+     */
     _setProjectionInternal(name: ProjectionSpecification['type']): void {
         const projectionObjects = createProjectionFromName(name, this.map._camera?.transform.constrainOverride, this._globalState);
         this.projection = projectionObjects.projection;

@@ -12,6 +12,7 @@ import {EXTENT} from '../../data/extent.ts';
 import {MercatorCoordinate} from '../mercator_coordinate.ts';
 import type {Tile} from '../../tile/tile.ts';
 import {CrsWorldCoordinateHelper, simpleCrs} from './crs.ts';
+import {mercatorWorldCoordinateHelper} from '../mercator_coordinate.ts';
 
 describe('transform', () => {
     test('creates a transform', () => {
@@ -667,6 +668,7 @@ function createMercatorTransform(center: LngLat, zoom: number, pitch: number = 0
 function createRayTransform(near: number[], far: number[], worldSize: number): MercatorTransform {
     const transform = Object.create(MercatorTransform.prototype);
     Object.defineProperty(transform, 'worldSize', {value: worldSize});
+    Object.defineProperty(transform, 'worldCoordinateHelper', {value: mercatorWorldCoordinateHelper});
     transform.getRaySegmentFromPixel = () => ({near, far});
     return transform as MercatorTransform;
 }

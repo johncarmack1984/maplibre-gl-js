@@ -1,4 +1,5 @@
 import {describe, beforeEach, afterEach, test, expect, vi} from 'vitest';
+import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {fakeServer, type FakeServer} from 'nise';
 import {type Source} from './source.ts';
 import {VectorTileSource} from './vector_tile_source.ts';
@@ -15,6 +16,7 @@ import {type WorkerTileParameters} from './worker_source.ts';
 import {SubdivisionGranularitySetting} from '../render/subdivision_granularity_settings.ts';
 import {type ActorMessage, MessageType} from '../util/actor_messages.ts';
 import {type MapSourceDataEvent} from '../ui/events.ts';
+import {CrsWorldCoordinateHelper, simpleCrs} from '../geo/projection/crs.ts';
 
 class StubbedEvented extends Evented {}
 
@@ -22,6 +24,7 @@ function createSource(options, transformCallback?, clearTiles = () => {}) {
     const source = new VectorTileSource('id', options, getMockDispatcher(), options.eventedParent);
     source.onAdd({
         transform: {showCollisionBoxes: false},
+        _camera: {transform: new MercatorTransform()},
         _getMapId: () => 1,
         _requestManager: new RequestManager(transformCallback),
         style: {
@@ -376,6 +379,23 @@ describe('VectorTileSource', () => {
 
         await waitForMetadataEvent(source);
         expect(source.tileBounds.bounds).toEqual({_sw: {lng: -47, lat: -7}, _ne: {lng: -45, lat: 90}});
+    });
+
+    test('builds tile bounds with the map projection', async () => {
+        const source = createSource({
+            minzoom: 0,
+            maxzoom: 22,
+            tiles: ['http://example.com/{z}/{x}/{y}.png'],
+            bounds: [0, 45, 45, 80]
+        });
+        (source.map as any)._camera = {transform: new MercatorTransform({worldCoordinateHelper: new CrsWorldCoordinateHelper(simpleCrs)})};
+
+        await waitForMetadataEvent(source);
+        const lastRowInsideLat45To80InTheSimpleCrs = 1;
+        const firstRowOnlyMercatorWouldInclude = 2;
+
+        expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, lastRowInsideLat45To80InTheSimpleCrs))).toBeTruthy();
+        expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, firstRowOnlyMercatorWouldInclude))).toBeFalsy();
     });
 
     test('respects TileJSON.bounds when loaded from TileJSON', async () => {
