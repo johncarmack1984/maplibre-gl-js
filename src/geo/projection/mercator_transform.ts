@@ -48,6 +48,7 @@ type MercatorRay = {
     dy: number;
     dz: number;
     worldSize: number;
+    wraps: boolean;
 };
 
 export class MercatorTransform implements ITransform {
@@ -416,7 +417,7 @@ export class MercatorTransform implements ITransform {
         const dx = far[0] - near[0];
         const dy = far[1] - near[1];
         const dz = far[2] - near[2];
-        const ray: MercatorRay = {index, exaggeration: terrain.exaggeration, near, dx, dy, dz, worldSize};
+        const ray: MercatorRay = {index, exaggeration: terrain.exaggeration, near, dx, dy, dz, worldSize, wraps: this.worldCoordinateHelper.wraps};
 
         let tStart = 0;
         let tEnd = 1;
@@ -714,11 +715,14 @@ export class MercatorTransform implements ITransform {
     }
 
     calculateCameraOptionsFromTo(from: LngLatLike, altitudeFrom: number, to: LngLatLike, altitudeTo: number): CameraOptionsFromTo {
-        const fromMercator = MercatorCoordinate.fromLngLat(from, altitudeFrom);
-        const toMercator = MercatorCoordinate.fromLngLat(to, altitudeTo);
-        const dx = toMercator.x - fromMercator.x;
-        const dy = toMercator.y - fromMercator.y;
-        const dz = toMercator.z - fromMercator.z;
+        const worldCoordinateHelper = this.worldCoordinateHelper;
+        const fromLngLat = LngLat.convert(from);
+        const toLngLat = LngLat.convert(to);
+        const fromWorld = worldCoordinateHelper.worldFromLngLat(fromLngLat.lng, fromLngLat.lat, altitudeFrom);
+        const toWorld = worldCoordinateHelper.worldFromLngLat(toLngLat.lng, toLngLat.lat, altitudeTo);
+        const dx = toWorld.x - fromWorld.x;
+        const dy = toWorld.y - fromWorld.y;
+        const dz = toWorld.z - fromWorld.z;
 
         const distance3D = Math.hypot(dx, dy, dz);
         if (distance3D === 0) throw new Error('Can\'t calculate camera options with same From and To');
@@ -730,7 +734,7 @@ export class MercatorTransform implements ITransform {
         let pitch = radiansToDegrees(Math.acos(groundDistance / distance3D));
         pitch = dz < 0 ? 90 - pitch : 90 + pitch;
 
-        return {center: toMercator.toLngLat(), elevation: altitudeTo, zoom, pitch, bearing};
+        return {center: worldCoordinateHelper.lngLatFromWorld(toWorld.x, toWorld.y), elevation: altitudeTo, zoom, pitch, bearing};
     }
 
     _calculateNearFarZIfNeeded(cameraToSeaLevelDistance: number, limitedPitchRadians: number, offset: Point): void {
@@ -1018,7 +1022,7 @@ export class MercatorTransform implements ITransform {
 }
 
 function mercatorSampleAt(ray: MercatorRay, t: number): TerrainSample {
-    return sampleAt(ray.index, ray.exaggeration, (ray.near[0] + t * ray.dx) / ray.worldSize, (ray.near[1] + t * ray.dy) / ray.worldSize);
+    return sampleAt(ray.index, ray.exaggeration, (ray.near[0] + t * ray.dx) / ray.worldSize, (ray.near[1] + t * ray.dy) / ray.worldSize, ray.wraps);
 }
 
 function mercatorIsBelowTerrain(ray: MercatorRay, t: number): boolean {

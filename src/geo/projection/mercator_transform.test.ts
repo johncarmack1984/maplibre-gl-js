@@ -12,6 +12,7 @@ import {EXTENT} from '../../data/extent.ts';
 import {MercatorCoordinate, mercatorZfromAltitude} from '../mercator_coordinate.ts';
 import type {Tile} from '../../tile/tile.ts';
 import {CrsWorldCoordinateHelper, simpleCrs} from './crs.ts';
+import {mercatorWorldCoordinateHelper} from '../mercator_coordinate.ts';
 
 describe('transform', () => {
     test('creates a transform', () => {
@@ -667,6 +668,7 @@ function createMercatorTransform(center: LngLat, zoom: number, pitch: number = 0
 function createRayTransform(near: number[], far: number[], worldSize: number): MercatorTransform {
     const transform = Object.create(MercatorTransform.prototype);
     Object.defineProperty(transform, 'worldSize', {value: worldSize});
+    Object.defineProperty(transform, 'worldCoordinateHelper', {value: mercatorWorldCoordinateHelper});
     transform.getRaySegmentFromPixel = () => ({near, far});
     return transform as MercatorTransform;
 }
@@ -1085,6 +1087,41 @@ describe('MercatorTransform over the simple CRS', () => {
             const camera = transform.getCameraLngLat();
             expect(camera.lng).toBeCloseTo(10, 6);
             expect(camera.lat).toBeCloseTo(20, 6);
+        });
+    });
+
+    describe('calculateCameraOptionsFromTo', () => {
+        test('bearing and zoom follow the identity CRS, where lng and lat are the world axes and equal steps make a 45 degree bearing', () => {
+            const transform = createSimpleTransform(512, 512);
+            transform.setZoom(1);
+            const worldUnitsPerDegree = 1 / 180;
+            const worldDistance = Math.hypot(10 * worldUnitsPerDegree, 10 * worldUnitsPerDegree);
+
+            const options = transform.calculateCameraOptionsFromTo({lng: 0, lat: 0}, 0, {lng: 10, lat: 10}, 0);
+
+            expect(options.bearing).toBeCloseTo(45, 10);
+            expect(options.pitch).toBeCloseTo(90, 10);
+            expect(options.center).toEqual(new LngLat(10, 10));
+            expect(options.zoom).toBeCloseTo(Math.log2(transform.cameraToCenterDistance / worldDistance / transform.tileSize), 10);
+        });
+
+        test('mercator tilts the bearing of the same step by its latitude stretch', () => {
+            const transform = new MercatorTransform();
+            transform.resize(512, 512);
+            transform.setZoom(1);
+
+            expect(transform.calculateCameraOptionsFromTo({lng: 0, lat: 0}, 0, {lng: 10, lat: 10}, 0).bearing).not.toBeCloseTo(45, 1);
+        });
+
+        test('altitude is scaled by the CRS meters per world unit, so 90 meters down in a 180 meter world is half a world unit', () => {
+            const transform = createSimpleTransform(512, 512);
+            transform.setZoom(1);
+            const halfAWorldUnit = 0.5;
+
+            const options = transform.calculateCameraOptionsFromTo({lng: 0, lat: 0}, 90, {lng: 0, lat: 0}, 0);
+
+            expect(options.pitch).toBeCloseTo(0, 10);
+            expect(options.zoom).toBeCloseTo(Math.log2(transform.cameraToCenterDistance / halfAWorldUnit / transform.tileSize), 10);
         });
     });
 });

@@ -83,6 +83,14 @@ describe('render', () => {
         expect(getTerrainData).toHaveBeenCalledWith(tileID);
     });
 
+    test('skips terrain data for render-to-texture draws in a registered planar projection', () => {
+        const {tileID, getTerrainData} = mockTerrainData();
+        style._setProjectionInternal('simple');
+
+        expect(painter.getTerrainDataForTile(tileID, true)).toBeNull();
+        expect(getTerrainData).not.toHaveBeenCalled();
+    });
+
     test('builds render options from the transform, globe projection and terrain', () => {
         const terrain = {tileManager: {anyTilesAfterTime: () => false}};
         map.terrain = terrain;

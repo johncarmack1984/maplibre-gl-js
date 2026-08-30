@@ -109,6 +109,14 @@ export interface Projection {
 
     /**
      * @internal
+     * True for the flat projections, mercator and every registered planar CRS, false for globe and
+     * vertical-perspective. Terrain renders layers to texture the same way on every flat projection,
+     * so the render-to-texture gate reads this instead of the projection name.
+     */
+    get isPlanar(): boolean;
+
+    /**
+     * @internal
      * Recalculates the projection state based on the current evaluation parameters.
      * @param params - Evaluation parameters.
      */

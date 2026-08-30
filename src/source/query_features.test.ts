@@ -6,6 +6,7 @@ import {
 import {TileManager} from '../tile/tile_manager.ts';
 import type Point from '@mapbox/point-geometry';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
+import {mercatorWorldCoordinateHelper} from '../geo/mercator_coordinate.ts';
 
 describe('QueryFeatures.rendered', () => {
     test('returns empty object if source returns no tiles', () => {
@@ -25,7 +26,7 @@ describe('QueryFeatures.source', () => {
         }, {
             getActor() {}
         } as any);
-        const result = querySourceFeatures(tileManager, {});
+        const result = querySourceFeatures(tileManager, {worldCoordinateHelper: mercatorWorldCoordinateHelper});
         expect(result).toEqual([]);
     });
 
