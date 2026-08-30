@@ -62,4 +62,6 @@ Compiling and caching GL shader programs is managed by the `Painter` and `Progra
 
 ## Transform
 
+The `Projection` owns a `WorldCoordinateHelper` that maps lng/lat to and from world coordinates (the unit square that tile 0/0/0 covers): mercator for the built-in projections, and a mapping built from the registered CRS definition for a projection registered with `addProjection`; the transform built for the projection runs on the same instance. `MercatorTransform`, the camera helper, covering tiles, sources, queries and terrain all go through that helper rather than calling the mercator functions directly, which is what lets a registered CRS render its pre-projected tiles with the mercator rendering path untouched. See `developer-guides/custom-crs.md` for the seam, the bit-identity rule that keeps mercator unchanged, and the GeoJSON pre-projection trick.
+
 ## Controls
