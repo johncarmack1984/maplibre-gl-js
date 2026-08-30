@@ -3,6 +3,7 @@ import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {RasterTileSource} from './raster_tile_source.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {RequestManager} from '../util/request_manager.ts';
+import {mercatorTileMatrix} from '../geo/projection/tile_matrix.ts';
 import {type Dispatcher} from '../util/dispatcher.ts';
 import {fakeServer, type FakeServer} from 'nise';
 import {type Tile} from '../tile/tile.ts';
@@ -17,7 +18,8 @@ function createSource(options, transformCallback?) {
         _getMapId: () => 1,
         _requestManager: new RequestManager(transformCallback),
         getPixelRatio() { return 1; },
-        _camera: {transform: new MercatorTransform()}
+        _camera: {transform: new MercatorTransform()},
+        style: {projection: {tileMatrix: mercatorTileMatrix}}
     } as any);
 
     source.on('error', () => { }); // to prevent console log of errors

@@ -203,7 +203,7 @@ export class VectorTileSource extends Evented<SourceEventType> implements Source
     }
 
     async loadTile(tile: Tile): Promise<LoadTileResult | void> {
-        const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme);
+        const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme, this.map.style.projection.tileMatrix);
         const params: WorkerTileParameters = {
             request: await this.map._requestManager.transformRequest(url, ResourceType.Tile),
             uid: tile.uid,
@@ -269,7 +269,7 @@ export class VectorTileSource extends Evented<SourceEventType> implements Source
             return undefined;
         }
         const maxZoomTileID = tile.tileID.scaledTo(this.maxzoom).canonical;
-        const maxZoomTileUrl = maxZoomTileID.url(this.tiles, this.map.getPixelRatio(), this.scheme);
+        const maxZoomTileUrl = maxZoomTileID.url(this.tiles, this.map.getPixelRatio(), this.scheme, this.map.style.projection.tileMatrix);
 
         return {
             maxZoomTileID,

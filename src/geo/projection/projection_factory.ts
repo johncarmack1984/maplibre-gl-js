@@ -33,7 +33,7 @@ export function createProjectionFromName(name: ProjectionSpecification['type'], 
     const registered = getRegisteredProjection(name);
     if (registered) {
         return {
-            projection: new MercatorProjection(registered.name),
+            projection: new MercatorProjection(registered.name, registered.tileMatrix),
             transform: new MercatorTransform({...transformOptions, worldCoordinateHelper: new CrsWorldCoordinateHelper(registered)}),
             cameraHelper: new MercatorCameraHelper(),
         };

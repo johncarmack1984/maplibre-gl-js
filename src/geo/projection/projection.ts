@@ -5,6 +5,7 @@ import type {Mesh} from '../../render/mesh.ts';
 import type {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {EvaluationParameters} from '../../style/evaluation_parameters.ts';
+import type {TileMatrix} from './tile_matrix.ts';
 
 /**
  * Custom projections are handled both by a class which implements this `Projection` interface,
@@ -114,6 +115,14 @@ export interface Projection {
      * so the render-to-texture gate reads this instead of the projection name.
      */
     get isPlanar(): boolean;
+
+    /**
+     * @internal
+     * The quad tile grid this projection's tiles are addressed in, in CRS units: EPSG:3857 meters
+     * for mercator, globe, and vertical-perspective, the registered CRS's own grid for a planar CRS.
+     * Used to expand the `{bbox}` tile URL token.
+     */
+    get tileMatrix(): TileMatrix;
 
     /**
      * @internal
