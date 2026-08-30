@@ -47,30 +47,39 @@ export type CrsDefinition = {
 
 /**
  * @internal
- * Builds the world coordinate mapping for a CRS definition: world x/y are the CRS coordinates
- * relative to the tile matrix origin, scaled so tile 0/0/0 is the 0..1 square, with y growing down.
+ * The world coordinate mapping for a CRS definition: world x/y are the CRS coordinates relative
+ * to the tile matrix origin, scaled so tile 0/0/0 is the 0..1 square, with y growing down.
  * One world unit is the zoom 0 extent, so meters per world unit is constant across the plane.
  */
-export function crsWorldCoordinateHelper(definition: CrsDefinition): WorldCoordinateHelper {
-    const [originX, originY] = definition.tileMatrix.origin;
-    const extent = definition.tileMatrix.extentAtZoom0;
-    return {
-        worldFromLngLat(lng: number, lat: number, altitude?: number): MercatorCoordinate {
-            const [crsX, crsY] = definition.project(lng, lat);
-            return new MercatorCoordinate((crsX - originX) / extent, (originY - crsY) / extent, altitude === undefined ? 0 : altitude / extent);
-        },
-        lngLatFromWorld(x: number, y: number): LngLat {
-            const [lng, lat] = definition.unproject(originX + x * extent, originY - y * extent);
-            return new LngLat(lng, lat);
-        },
-        metersPerWorldUnit(): number {
-            return extent;
-        },
-        worldZFromAltitude(altitude: number): number {
-            return altitude / extent;
-        },
-        wraps: false,
-    };
+export class CrsWorldCoordinateHelper implements WorldCoordinateHelper {
+    private readonly _definition: CrsDefinition;
+    private readonly _originX: number;
+    private readonly _originY: number;
+    private readonly _extent: number;
+    /** A CRS is a bounded plane: no world copies, no wrapping, and no latitude clamp. */
+    readonly wraps = false;
+
+    constructor(definition: CrsDefinition) {
+        this._definition = definition;
+        this._originX = definition.tileMatrix.origin[0];
+        this._originY = definition.tileMatrix.origin[1];
+        this._extent = definition.tileMatrix.extentAtZoom0;
+    }
+
+    worldFromLngLat(lng: number, lat: number, altitude?: number): MercatorCoordinate {
+        const [crsX, crsY] = this._definition.project(lng, lat);
+        return new MercatorCoordinate((crsX - this._originX) / this._extent, (this._originY - crsY) / this._extent, altitude === undefined ? 0 : altitude / this._extent);
+    }
+    lngLatFromWorld(x: number, y: number): LngLat {
+        const [lng, lat] = this._definition.unproject(this._originX + x * this._extent, this._originY - y * this._extent);
+        return new LngLat(lng, lat);
+    }
+    metersPerWorldUnit(_x: number, _y: number): number {
+        return this._extent;
+    }
+    worldZFromAltitude(altitude: number, _lngLat: LngLat): number {
+        return altitude / this._extent;
+    }
 }
 
 /**
@@ -97,7 +106,7 @@ export const simpleCrs: CrsDefinition = {
  * @internal
  * A flat projection over a registered planar CRS. Rendering is identical to mercator, since the
  * tiles are already in the CRS's own quad grid and only the lng/lat mapping differs; that mapping
- * is built by {@link crsWorldCoordinateHelper} and lives on the transform. Shares the mercator
+ * is built by {@link CrsWorldCoordinateHelper} and lives on the transform. Shares the mercator
  * shader variant so programs are cached once for every planar projection.
  */
 export class PlanarProjection extends MercatorProjection {

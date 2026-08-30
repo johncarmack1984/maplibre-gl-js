@@ -11,7 +11,7 @@ import {createDEM, createDEMTerrain, createTerrain, expectToBeCloseToArray} from
 import {EXTENT} from '../../data/extent.ts';
 import {MercatorCoordinate} from '../mercator_coordinate.ts';
 import type {Tile} from '../../tile/tile.ts';
-import {crsWorldCoordinateHelper, simpleCrs} from './planar_projection.ts';
+import {CrsWorldCoordinateHelper, simpleCrs} from './planar_projection.ts';
 
 describe('transform', () => {
     test('creates a transform', () => {
@@ -888,7 +888,7 @@ function createSimpleTransform(width: number, height: number): MercatorTransform
         minPitch: 0,
         maxPitch: 85,
         renderWorldCopies: true,
-        worldCoordinateHelper: crsWorldCoordinateHelper(simpleCrs),
+        worldCoordinateHelper: new CrsWorldCoordinateHelper(simpleCrs),
     });
     transform.resize(width, height);
     return transform;

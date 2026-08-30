@@ -4,7 +4,7 @@ import {LngLat} from '../lng_lat.ts';
 import {coveringTiles, coveringZoomLevel, createCalculateTileZoomFunction, type CoveringTilesOptions} from './covering_tiles.ts';
 import {OverscaledTileID} from '../../tile/tile_id.ts';
 import {MercatorTransform} from './mercator_transform.ts';
-import {crsWorldCoordinateHelper, simpleCrs} from './planar_projection.ts';
+import {CrsWorldCoordinateHelper, simpleCrs} from './planar_projection.ts';
 
 describe('coveringTiles', () => {
     describe('globe', () => {
@@ -823,7 +823,7 @@ describe('coveringTiles', () => {
                 minPitch: 0,
                 maxPitch: 85,
                 renderWorldCopies: true,
-                worldCoordinateHelper: crsWorldCoordinateHelper(simpleCrs),
+                worldCoordinateHelper: new CrsWorldCoordinateHelper(simpleCrs),
             });
             transform.resize(width, height);
             return transform;

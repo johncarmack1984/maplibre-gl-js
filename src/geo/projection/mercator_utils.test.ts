@@ -3,7 +3,7 @@ import Point from '@mapbox/point-geometry';
 import {LngLat} from '../lng_lat.ts';
 import {cameraMercatorCoordinate, getMercatorHorizon, projectToWorldCoordinates, tileCoordinatesToLocation, tileCoordinatesToMercatorCoordinates, unprojectFromWorldCoordinates} from './mercator_utils.ts';
 import {mercatorWorldCoordinateHelper} from '../mercator_coordinate.ts';
-import {crsWorldCoordinateHelper, simpleCrs} from './planar_projection.ts';
+import {CrsWorldCoordinateHelper, simpleCrs} from './planar_projection.ts';
 import {MercatorTransform} from './mercator_transform.ts';
 import {GlobeTransform} from './globe_transform.ts';
 import {altitudeFromMercatorZ} from '../mercator_coordinate.ts';
@@ -26,7 +26,7 @@ describe('mercator utils', () => {
     });
 
     test('projectToWorldCoordinates does not clamp latitude for a non-wrapping helper', () => {
-        const worldCoordinateHelper = crsWorldCoordinateHelper(simpleCrs);
+        const worldCoordinateHelper = new CrsWorldCoordinateHelper(simpleCrs);
         const projected = projectToWorldCoordinates(1024, new LngLat(0, 89), worldCoordinateHelper);
         expect(projected.y).toBeCloseTo(1024 / 180, 10);
         expect(unprojectFromWorldCoordinates(1024, projected, worldCoordinateHelper).lat).toBeCloseTo(89, 10);
