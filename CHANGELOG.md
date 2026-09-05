@@ -1,7 +1,7 @@
 ## main
 ### ✨ Features and improvements
 - Add `map.getStyleUrl()`, which returns the URL the style was loaded from, or `null` when the style was given as an object ([#7109](https://github.com/maplibre/maplibre-gl-js/issues/7109))
-- Add the `emptyTileBehavior` option to raster and raster-dem sources: `missing` treats an empty (HTTP 204) tile like a 404, so a tile from another zoom level shows through ([#3990](https://github.com/maplibre/maplibre-gl-js/issues/3990))
+- Add the `emptyTileBehavior` option to vector, raster and raster-dem sources: `missing` treats an empty (HTTP 204) tile, and a vector 404, as a missing tile, so a tile from another zoom level shows through ([#3990](https://github.com/maplibre/maplibre-gl-js/issues/3990))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
