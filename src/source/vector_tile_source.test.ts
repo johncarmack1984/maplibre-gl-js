@@ -17,6 +17,7 @@ import {SubdivisionGranularitySetting} from '../render/subdivision_granularity_s
 import {type ActorMessage, MessageType} from '../util/actor_messages.ts';
 import {type MapSourceDataEvent} from '../ui/events.ts';
 import {CrsWorldCoordinateHelper, simpleCrs} from '../geo/projection/crs.ts';
+import {mercatorTileMatrix} from '../geo/projection/tile_matrix.ts';
 
 class StubbedEvented extends Evented {}
 
@@ -32,7 +33,8 @@ function createSource(options, transformCallback?, clearTiles = () => {}) {
             projection: {
                 get subdivisionGranularity() {
                     return SubdivisionGranularitySetting.noSubdivision;
-                }
+                },
+                tileMatrix: mercatorTileMatrix
             }
         },
         getGlobalState: () => ({}),
@@ -396,6 +398,31 @@ describe('VectorTileSource', () => {
 
         expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, lastRowInsideLat45To80InTheSimpleCrs))).toBeTruthy();
         expect(source.hasTile(new OverscaledTileID(3, 0, 3, 4, firstRowOnlyMercatorWouldInclude))).toBeFalsy();
+    });
+
+    test('expands {bbox} in the map projection\'s tile matrix', async () => {
+        const source = createSource({
+            minzoom: 0,
+            maxzoom: 22,
+            tiles: ['http://example.com/?bbox={bbox}'],
+        });
+        (source.map.style.projection as any).tileMatrix = simpleCrs.tileMatrix;
+
+        let receivedMessage: ActorMessage<MessageType> = null;
+        source.dispatcher = getWrapDispatcher()({
+            sendAsync(message) {
+                receivedMessage = message;
+                return Promise.resolve({});
+            }
+        });
+
+        await waitForMetadataEvent(source);
+        await source.loadTile({
+            loadVectorData() {},
+            tileID: new OverscaledTileID(1, 0, 1, 1, 0)
+        } as any as Tile);
+
+        expect((receivedMessage.data as WorkerTileParameters).request.url).toBe('http://example.com/?bbox=0,0,90,90');
     });
 
     test('respects TileJSON.bounds when loaded from TileJSON', async () => {

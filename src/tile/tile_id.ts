@@ -5,6 +5,7 @@ import {register} from '../util/web_worker_transfer.ts';
 import {type Mat4f32, MAX_TILE_ZOOM, MIN_TILE_ZOOM} from '../util/util.ts';
 import {type ICanonicalTileID, type IMercatorCoordinate} from '@maplibre/maplibre-gl-style-spec';
 import {isInBoundsForTileZoomXY} from '../util/world_bounds.ts';
+import {mercatorTileMatrix, type TileMatrix} from '../geo/projection/tile_matrix.ts';
 
 /**
  * A canonical way to define a tile ID
@@ -32,10 +33,19 @@ export class CanonicalTileID implements ICanonicalTileID {
     }
 
     /**
-     * given a list of urls, choose a url template and return a tile URL
+     * Given a list of URL templates, picks one and expands its tokens for this tile:
+     * `{z}`, `{x}`, `{y}` (flipped for the `tms` scheme), `{prefix}`, `{ratio}`, `{quadkey}`,
+     * `{bbox-epsg-3857}` (the tile's bounds in EPSG:3857 meters) and `{bbox}` (the tile's bounds
+     * as `minX,minY,maxX,maxY` in the units of `tileMatrix`; x and y are in the order
+     * `CrsDefinition.project` returns (easting, northing for a projected CRS); on a mercator map
+     * `{bbox}` and `{bbox-epsg-3857}` expand to the same string).
+     * @param urls - The URL templates to choose from.
+     * @param pixelRatio - The device pixel ratio, selecting the `{ratio}` suffix.
+     * @param scheme - `'xyz'` or `'tms'`.
+     * @param tileMatrix - The tile grid `{bbox}` is expressed in: the map projection's. Optional only because
+     * the style spec's `ICanonicalTileID.url` has three parameters; absent means the EPSG:3857 grid.
      */
-    url(urls: string[], pixelRatio: number, scheme?: string | null): string {
-        const bbox = getTileBBox(this.x, this.y, this.z);
+    url(urls: string[], pixelRatio: number, scheme?: string | null, tileMatrix: TileMatrix = mercatorTileMatrix): string {
         const quadkey = getQuadkey(this.z, this.x, this.y);
 
         return urls[(this.x + this.y) % urls.length]
@@ -45,7 +55,8 @@ export class CanonicalTileID implements ICanonicalTileID {
             .replace(/{y}/g, String(scheme === 'tms' ? (Math.pow(2, this.z) - this.y - 1) : this.y))
             .replace(/{ratio}/g, pixelRatio > 1 ? '@2x' : '')
             .replace(/{quadkey}/g, quadkey)
-            .replace(/{bbox-epsg-3857}/g, bbox);
+            .replace(/{bbox-epsg-3857}/g, () => getTileMatrixBBox(this.x, this.y, this.z, mercatorTileMatrix))
+            .replace(/{bbox}/g, () => getTileMatrixBBox(this.x, this.y, this.z, tileMatrix));
     }
 
     isChildOf(parent: ICanonicalTileID): boolean {
@@ -281,33 +292,20 @@ export function calculateTileKey(wrap: number, overscaledZ: number, z: number, x
     return (dim * dim * wrap + dim * y + x).toString(36) + z.toString(36) + overscaledZ.toString(36);
 }
 
-/** WGS84 spherical radius used by EPSG:3857, distinct from the mean earth radius MercatorCoordinate is built on. */
-const EPSG3857_RADIUS = 6378137;
-const EPSG3857_HALF_CIRCUMFERENCE = Math.PI * EPSG3857_RADIUS;
-
 /**
- * Builds the `{bbox-epsg-3857}` token used in WMS tile URLs: the tile's bounding
- * box in EPSG:3857 meters as a `minX,minY,maxX,maxY` string.
+ * Builds the `{bbox}` and `{bbox-epsg-3857}` tokens used in WMS tile URLs: the tile's bounding
+ * box in the tile matrix's CRS units as a `minX,minY,maxX,maxY` string, y up.
  *
- * Inlined from the archived \@mapbox/whoots-js (ISC, Copyright (c) 2017 Mapbox).
+ * The EPSG:3857 form of this formula was inlined from the archived \@mapbox/whoots-js (ISC, Copyright (c) 2017 Mapbox).
  */
-function getTileBBox(x: number, y: number, z: number): string {
-    // for Google/OSM tile scheme we need to alter the y
-    y = Math.pow(2, z) - y - 1;
+function getTileMatrixBBox(x: number, y: number, z: number, tileMatrix: TileMatrix): string {
+    const tilesAtZoom = Math.pow(2, z);
+    const tileExtent = tileMatrix.extentAtZoom0 / tilesAtZoom;
+    const [gridMinX, gridMaxY] = tileMatrix.origin;
+    const gridMinY = gridMaxY - tileMatrix.extentAtZoom0;
+    const rowFromBottom = tilesAtZoom - y - 1;
 
-    const min = getEpsg3857Coords(x * 256, y * 256, z);
-    const max = getEpsg3857Coords((x + 1) * 256, (y + 1) * 256, z);
-
-    return `${min[0]},${min[1]},${max[0]},${max[1]}`;
-}
-
-/** Projects tile pixel coordinates to EPSG:3857 meters. */
-function getEpsg3857Coords(x: number, y: number, z: number): [number, number] {
-    const resolution = (2 * EPSG3857_HALF_CIRCUMFERENCE / 256) / Math.pow(2, z);
-    const mercX = x * resolution - EPSG3857_HALF_CIRCUMFERENCE;
-    const mercY = y * resolution - EPSG3857_HALF_CIRCUMFERENCE;
-
-    return [mercX, mercY];
+    return `${gridMinX + x * tileExtent},${gridMinY + rowFromBottom * tileExtent},${gridMinX + (x + 1) * tileExtent},${gridMinY + (rowFromBottom + 1) * tileExtent}`;
 }
 
 function getQuadkey(z:number, x:number, y:number): string {
