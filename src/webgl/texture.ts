@@ -28,7 +28,7 @@ export class Texture {
     size: [number, number];
     texture: WebGLTexture;
     format: TextureFormat;
-    filter: TextureFilter;
+    magFilter: TextureFilter;
     minFilter: TextureFilter;
     wrap: TextureWrap;
     useMipmap: boolean;
@@ -66,7 +66,7 @@ export class Texture {
             this.texture = gl.createTexture();
             this._ownedHandle = this.texture;
             // A fresh handle is back on GL's defaults, so bind() has to re-apply these.
-            this.filter = undefined;
+            this.magFilter = undefined;
             this.minFilter = undefined;
             this.wrap = undefined;
         }
@@ -145,7 +145,7 @@ export class Texture {
         gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
     }
 
-    bind(filter: TextureFilter, wrap: TextureWrap, minFilter?: TextureFilter | null): void {
+    bind(magFilter: TextureFilter, wrap: TextureWrap, minFilter?: TextureFilter | null): void {
         const {context} = this;
         const {gl} = context;
 
@@ -158,11 +158,11 @@ export class Texture {
         if ((minFilter === gl.LINEAR_MIPMAP_NEAREST || minFilter === gl.LINEAR_MIPMAP_LINEAR) && !this.useMipmap) {
             minFilter = gl.LINEAR;
         }
-        const effectiveMinFilter = minFilter || filter;
+        const effectiveMinFilter = minFilter || magFilter;
 
-        if (filter !== this.filter) {
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
-            this.filter = filter;
+        if (magFilter !== this.magFilter) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magFilter);
+            this.magFilter = magFilter;
         }
 
         if (effectiveMinFilter !== this.minFilter) {
