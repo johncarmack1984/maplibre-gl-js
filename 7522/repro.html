@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Axis-aligned transform pixel snapping during script animation</title>
+<style>
+  body { margin: 0; font: 14px -apple-system, Helvetica, Arial, sans-serif; }
+  #stage { position: relative; width: 900px; height: 600px; overflow: hidden; background: #fff; }
+  #grid { position: absolute; left: 0; top: 0; width: 1800px; height: 1200px;
+          background-image: linear-gradient(90deg, #ddd 1px, transparent 1px), linear-gradient(0deg, #ddd 1px, transparent 1px);
+          background-size: 40px 40px; will-change: transform; }
+  .box { position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; }
+  #a { background: rgb(208,0,0); }
+  #b { background: rgb(0,96,192); }
+  #c { background: rgb(0,128,0); }
+  #legend { position: absolute; left: 12px; top: 12px; background: rgba(255,255,255,0.9); padding: 8px 10px; line-height: 1.5; }
+  .sw { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; margin-right: 6px; }
+</style></head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <div class="box" id="a"></div>
+  <div class="box" id="b"></div>
+  <div class="box" id="c"></div>
+  <div id="legend">
+    <div><span class="sw" style="background:rgb(208,0,0)"></span>A: translate(x, y) rotateX(0deg) rotateZ(0deg)</div>
+    <div><span class="sw" style="background:rgb(0,96,192)"></span>B: translate(x, y) rotateX(0deg) rotateZ(0.05deg)</div>
+    <div><span class="sw" style="background:rgb(0,128,0)"></span>C: translate(x, y) rotateX(0deg) rotateZ(0.01deg)</div>
+    <div id="pos"></div>
+  </div>
+</div>
+<script>
+// Three elements move 0.17 CSS px per frame along the same slow path (the speed of a map marker near the
+// rotation center of an animated map). Each frame the transform is rewritten from script, like a map library
+// positioning markers. The background grid moves too, so a frozen element is visible against it.
+const a = document.getElementById('a'), b = document.getElementById('b'), c = document.getElementById('c');
+const grid = document.getElementById('grid'), pos = document.getElementById('pos');
+const STEP = 0.17;  // CSS px per frame
+let t = 0;
+function frame() {
+  t++;
+  const x = 300 + (t * STEP) % 300;
+  const y = 250 + Math.sin(t / 60) * 40;
+  a.style.transform = `translate(${x}px, ${y}px) rotateX(0deg) rotateZ(0deg)`;
+  b.style.transform = `translate(${x + 60}px, ${y}px) rotateX(0deg) rotateZ(0.05deg)`;
+  c.style.transform = `translate(${x + 120}px, ${y}px) rotateX(0deg) rotateZ(0.01deg)`;
+  grid.style.transform = `translate(${-((t * STEP * 2) % 40)}px, ${-((t * STEP) % 40)}px)`;
+  if (t % 30 === 0) pos.textContent = `x=${x.toFixed(2)} y=${y.toFixed(2)}`;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body></html>
