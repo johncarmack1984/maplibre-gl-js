@@ -116,7 +116,7 @@ export class Texture {
             }
         }
 
-        if (this.useMipmap) {
+        if (this.useMipmap && !(hasDataProperty(image) && image.data === null)) {
             gl.generateMipmap(gl.TEXTURE_2D);
         }
 
@@ -178,7 +178,8 @@ export class Texture {
     }
 
     /**
-     * Rebuilds the mip chain after the texture was drawn into as a framebuffer attachment
+     * Builds the mip chain after the texture was drawn into as a framebuffer attachment.
+     * An allocation without pixels (`data: null`) gets no chain from `update`, so a render target is built once, here, after the draw.
      */
     generateMipmap(): void {
         if (!this.useMipmap) return;

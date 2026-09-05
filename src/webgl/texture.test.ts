@@ -108,6 +108,17 @@ describe('Texture', () => {
         expect(gl.generateMipmap).toHaveBeenCalledWith(gl.TEXTURE_2D);
     });
 
+    test('an allocation without pixels leaves the mip chain to generateMipmap', () => {
+        const gl = createNullGL();
+        const texture = new Texture(new Context(gl), {width: 2, height: 2, data: null}, gl.RGBA, {useMipmap: true});
+
+        expect(gl.generateMipmap).not.toHaveBeenCalled();
+
+        texture.generateMipmap();
+
+        expect(gl.generateMipmap).toHaveBeenCalledTimes(1);
+    });
+
     test('generateMipmap does nothing for a texture created without mipmaps', () => {
         const gl = createNullGL();
         const texture = new Texture(new Context(gl), new RGBAImage({width: 2, height: 2}, new Uint8Array(2 * 2 * 4)), gl.RGBA);
