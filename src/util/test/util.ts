@@ -50,6 +50,10 @@ export class StubMap extends Evented {
         newTransform.apply(this.transform, true);
         this.transform = newTransform;
     }
+
+    get _camera(): {transform: IReadonlyTransform} {
+        return {transform: this.transform};
+    }
 }
 
 export function createMap(options?: Partial<MapOptions> & {deleteStyle?: boolean}): Map {

@@ -6,6 +6,7 @@ import {browser} from '../util/browser.ts';
 import {fixedLngLat, fixedNum} from '../../test/unit/lib/fixed.ts';
 import {setMatchMedia} from '../util/test/util.ts';
 import {mercatorZfromAltitude} from '../geo/mercator_coordinate.ts';
+import {scaleZoom} from '../util/util.ts';
 import {LngLat, type LngLatLike} from '../geo/lng_lat.ts';
 import {LngLatBounds} from '../geo/lng_lat_bounds.ts';
 import {getZoomAdjustment} from '../geo/projection/globe_utils.ts';
@@ -4018,5 +4019,43 @@ describe('zoomSnap', () => {
         camera.setZoom(9.1);
         camera.zoomIn({duration: 0});
         expect(camera.getZoom()).toBe(10.0);
+    });
+});
+
+describe('calculateCameraOptionsFromTo in a planar projection', () => {
+    function createSimpleCamera(): Camera {
+        const {camera} = createCamera(null, false, {zoom: 1});
+        const projectionObjects = createProjectionFromName('simple', undefined, {});
+        camera.migrateProjection(projectionObjects.transform, projectionObjects.cameraHelper);
+        return camera;
+    }
+
+    test('bearing and zoom follow the identity CRS, where lng and lat are the world axes and equal steps make a 45 degree bearing', () => {
+        const camera = createSimpleCamera();
+        const worldUnitsPerDegree = 1 / 180;
+        const worldDistance = Math.hypot(10 * worldUnitsPerDegree, 10 * worldUnitsPerDegree);
+
+        const options = camera.calculateCameraOptionsFromTo({lng: 0, lat: 0}, 0, {lng: 10, lat: 10});
+
+        expect(options.bearing).toBeCloseTo(45, 10);
+        expect(options.pitch).toBeCloseTo(90, 10);
+        expect(options.center).toEqual(new LngLat(10, 10));
+        expect(options.zoom).toBeCloseTo(scaleZoom(camera.transform.cameraToCenterDistance / worldDistance / camera.transform.tileSize), 10);
+    });
+
+    test('mercator tilts the bearing of the same step by its latitude stretch', () => {
+        const {camera} = createCamera(null, false, {zoom: 1});
+
+        expect(camera.calculateCameraOptionsFromTo({lng: 0, lat: 0}, 0, {lng: 10, lat: 10}).bearing).not.toBeCloseTo(45, 1);
+    });
+
+    test('altitude is scaled by the CRS meters per world unit, so 90 meters down in a 180 meter world is half a world unit', () => {
+        const camera = createSimpleCamera();
+        const halfAWorldUnit = 0.5;
+
+        const options = camera.calculateCameraOptionsFromTo({lng: 0, lat: 0}, 90, {lng: 0, lat: 0}, 0);
+
+        expect(options.pitch).toBeCloseTo(0, 10);
+        expect(options.zoom).toBeCloseTo(scaleZoom(camera.transform.cameraToCenterDistance / halfAWorldUnit / camera.transform.tileSize), 10);
     });
 });

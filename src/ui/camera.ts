@@ -7,7 +7,6 @@ import {LngLat} from '../geo/lng_lat.ts';
 import {LngLatBounds} from '../geo/lng_lat_bounds.ts';
 import {Evented} from '../util/evented.ts';
 import {MapMovementEvent} from './events.ts';
-import {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {MercatorCameraHelper} from '../geo/projection/mercator_camera_helper.ts';
 
@@ -709,11 +708,14 @@ export class Camera extends Evented<MapEventType> {
     }
 
     calculateCameraOptionsFromTo(from: LngLatLike, altitudeFrom: number, to: LngLatLike, altitudeTo: number = 0): CameraOptions {
-        const fromMercator = MercatorCoordinate.fromLngLat(from, altitudeFrom);
-        const toMercator = MercatorCoordinate.fromLngLat(to, altitudeTo);
-        const dx = toMercator.x - fromMercator.x;
-        const dy = toMercator.y - fromMercator.y;
-        const dz = toMercator.z - fromMercator.z;
+        const worldCoordinateHelper = this.transform.worldCoordinateHelper;
+        const fromLngLat = LngLat.convert(from);
+        const toLngLat = LngLat.convert(to);
+        const fromWorld = worldCoordinateHelper.worldFromLngLat(fromLngLat.lng, fromLngLat.lat);
+        const toWorld = worldCoordinateHelper.worldFromLngLat(toLngLat.lng, toLngLat.lat);
+        const dx = toWorld.x - fromWorld.x;
+        const dy = toWorld.y - fromWorld.y;
+        const dz = worldCoordinateHelper.worldZFromAltitude(altitudeTo, toLngLat) - worldCoordinateHelper.worldZFromAltitude(altitudeFrom, fromLngLat);
 
         const distance3D = Math.hypot(dx, dy, dz);
         if (distance3D === 0) throw new Error('Can\'t calculate camera options with same From and To');
@@ -726,7 +728,7 @@ export class Camera extends Evented<MapEventType> {
         pitch = dz < 0 ? 90 - pitch : 90 + pitch;
 
         return {
-            center: toMercator.toLngLat(),
+            center: worldCoordinateHelper.lngLatFromWorld(toWorld.x, toWorld.y),
             elevation: altitudeTo,
             zoom,
             pitch,
