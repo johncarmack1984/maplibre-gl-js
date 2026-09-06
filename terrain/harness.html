@@ -47,7 +47,7 @@ function profileStats(fromFrame) {
     const col = (k, sub) => fr.map(r => sub ? r[k][sub] : r[k]);
     const out = {frames: fr.length, gpuTimer: !!P.hasGpuTimer, disjoint: fr.filter(r => r.disjoint).length,
         cpuRender: {p50: pctOf(col('cpuRender'), .5), p90: pctOf(col('cpuRender'), .9), max: pctOf(col('cpuRender'), 1)},
-        redrapes: {total: fr.reduce((a, r) => a + r.redrapes, 0), framesWith: fr.filter(r => r.redrapes > 0).length, max: Math.max(0, ...col('redrapes'))},
+        redrapes: {total: fr.reduce((a, r) => a + r.redrapes, 0), framesWith: fr.filter(r => r.redrapes > 0).length, max: Math.max(0, ...col('redrapes'))}, drapeMegapixels: +(fr.reduce((a, r) => a + (r.drapePixels || 0), 0) / 1e6).toFixed(1),
         depthDraws: fr.reduce((a, r) => a + r.depthDraws, 0), rttTilesPerFrame: pctOf(col('rttTiles'), .5)};
     for (const region of ['depth', 'rtt', 'terrain']) {
         out['gpu_' + region] = {p50: pctOf(col('gpu', region), .5), p90: pctOf(col('gpu', region), .9), max: pctOf(col('gpu', region), 1)};
@@ -91,7 +91,7 @@ if (q.get('gesture') === 'pan30') {
     await idle();
     map.jumpTo({zoom: zoom + 2}); await idle();
     await phase('pan30-z14-east-8s', 8500, () => DRAG ? dragPan(-innerWidth * 0.8, 0, 8000) : new Promise(r => { map.easeTo({center: [center[0] + 0.03, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
-    log('DONE. Summary below (screenshot this):'); for (const ph of results.phases) { const q = ph.profile; log(`${ph.label}: frame p50 ${ph.p50} p90 ${ph.p90} max ${ph.max} ms, over 33 ms: ${ph.over33}` + (ph.gpuStall ? `, GPU wait p50 ${ph.gpuStall.p50} p90 ${ph.gpuStall.p90} max ${ph.gpuStall.max} ms` : '') + (q ? ` | GPU terrain ${q.gpu_terrain.p50}/${q.gpu_terrain.max} depth ${q.gpu_depth.max} drape max ${q.gpu_rtt.max} (${q.redrapes.total} drapes) cpu ${q.cpuRender.p50}` : '')); } log('device: ' + navigator.userAgent); log('gpu timer: ' + (window.__terrainProfile?.hasGpuTimer ?? 'n/a'));
+    log('DONE. Summary below (screenshot this):'); for (const ph of results.phases) { const q = ph.profile; log(`${ph.label}: frame p50 ${ph.p50} p90 ${ph.p90} max ${ph.max} ms, over 33 ms: ${ph.over33}` + (ph.gpuStall ? `, GPU wait p50 ${ph.gpuStall.p50} p90 ${ph.gpuStall.p90} max ${ph.gpuStall.max} ms` : '') + (q ? ` | GPU terrain ${q.gpu_terrain.p50}/${q.gpu_terrain.max} depth ${q.gpu_depth.max} drape max ${q.gpu_rtt.max} (${q.redrapes.total} drapes, ${q.drapeMegapixels} Mpx) cpu ${q.cpuRender.p50}` : '')); } log('device: ' + navigator.userAgent); log('gpu timer: ' + (window.__terrainProfile?.hasGpuTimer ?? 'n/a'));
     window.results = results;
 } else {
 await phase('idle-3s', 3000, async () => {});
@@ -113,7 +113,7 @@ await phase('rotate-90-4s', 4500, () => new Promise(r => { map.easeTo({bearing: 
 await idle();
 await phase('flyTo-far-5s', 5500, () => new Promise(r => { map.flyTo({center: [center[0] + 1.5, center[1] + 0.8], zoom: zoom, pitch: 60, bearing: 0, duration: 5000}); map.once('moveend', r); }));
 await idle();
-log('DONE. Summary below (screenshot this):'); for (const ph of results.phases) { const q = ph.profile; log(`${ph.label}: frame p50 ${ph.p50} p90 ${ph.p90} max ${ph.max} ms, over 33 ms: ${ph.over33}` + (ph.gpuStall ? `, GPU wait p50 ${ph.gpuStall.p50} p90 ${ph.gpuStall.p90} max ${ph.gpuStall.max} ms` : '') + (q ? ` | GPU terrain ${q.gpu_terrain.p50}/${q.gpu_terrain.max} depth ${q.gpu_depth.max} drape max ${q.gpu_rtt.max} (${q.redrapes.total} drapes) cpu ${q.cpuRender.p50}` : '')); } log('device: ' + navigator.userAgent); log('gpu timer: ' + (window.__terrainProfile?.hasGpuTimer ?? 'n/a'));
+log('DONE. Summary below (screenshot this):'); for (const ph of results.phases) { const q = ph.profile; log(`${ph.label}: frame p50 ${ph.p50} p90 ${ph.p90} max ${ph.max} ms, over 33 ms: ${ph.over33}` + (ph.gpuStall ? `, GPU wait p50 ${ph.gpuStall.p50} p90 ${ph.gpuStall.p90} max ${ph.gpuStall.max} ms` : '') + (q ? ` | GPU terrain ${q.gpu_terrain.p50}/${q.gpu_terrain.max} depth ${q.gpu_depth.max} drape max ${q.gpu_rtt.max} (${q.redrapes.total} drapes, ${q.drapeMegapixels} Mpx) cpu ${q.cpuRender.p50}` : '')); } log('device: ' + navigator.userAgent); log('gpu timer: ' + (window.__terrainProfile?.hasGpuTimer ?? 'n/a'));
 window.results = results;
 }
 </script></body></html>
