@@ -106,8 +106,7 @@ function renderHeatmapFlat(painter: Painter, layer: HeatmapStyleLayer) {
     // color ramp texture.
     const fbo = layer.heatmapFbos.get(HEATMAP_FULL_RENDER_FBO_KEY);
     if (!fbo) return;
-    context.activeTexture.set(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, fbo.colorAttachment.get());
+    context.bindTexture2D(gl.TEXTURE0, fbo.colorAttachment.get());
 
     context.activeTexture.set(gl.TEXTURE1);
     const colorRampTexture = getColorRampTexture(context, layer);
@@ -172,8 +171,7 @@ function renderHeatmapTerrain(painter: Painter, layer: HeatmapStyleLayer, coord:
     const fbo = layer.heatmapFbos.get(tileKey);
     if (!fbo) return;
 
-    context.activeTexture.set(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, fbo.colorAttachment.get());
+    context.bindTexture2D(gl.TEXTURE0, fbo.colorAttachment.get());
 
     context.activeTexture.set(gl.TEXTURE1);
     colorRampTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
@@ -204,7 +202,7 @@ function bindFramebuffer(context: Context, painter: Painter, layer: HeatmapStyle
         fbo = createHeatmapFbo(context, painter.width / 4, painter.height / 4);
         layer.heatmapFbos.set(HEATMAP_FULL_RENDER_FBO_KEY, fbo);
     } else {
-        gl.bindTexture(gl.TEXTURE_2D, fbo.colorAttachment.get());
+        context.bindTexture2D(context.activeTexture.get(), fbo.colorAttachment.get());
         context.bindFramebuffer.set(fbo.framebuffer);
     }
 }
@@ -212,7 +210,7 @@ function bindFramebuffer(context: Context, painter: Painter, layer: HeatmapStyle
 function createHeatmapFbo(context: Context, width: number, height: number): Framebuffer {
     const gl = context.gl;
     const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+    context.bindTexture2D(context.activeTexture.get(), texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

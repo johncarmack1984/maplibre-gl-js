@@ -378,19 +378,6 @@ export class BindRenderbuffer extends BaseValue<WebGLRenderbuffer> {
     }
 }
 
-export class BindTexture extends BaseValue<WebGLTexture> {
-    getDefault(): WebGLTexture {
-        return null;
-    }
-    set(v?: WebGLTexture | null): void {
-        if (v === this.current && !this.dirty) return;
-        const gl = this.gl;
-        gl.bindTexture(gl.TEXTURE_2D, v);
-        this.current = v;
-        this.dirty = false;
-    }
-}
-
 export class BindVertexBuffer extends BaseValue<WebGLBuffer> {
     getDefault(): WebGLBuffer {
         return null;

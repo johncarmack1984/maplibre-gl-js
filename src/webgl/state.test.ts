@@ -1,5 +1,5 @@
 import {describe, test, expect} from 'vitest';
-import {type IValue, ClearColor, ClearDepth, ClearStencil, ColorMask, DepthMask, StencilMask, StencilFunc, StencilOp, StencilTest, DepthRange, DepthTest, DepthFunc, Blend, BlendFunc, BlendColor, ProgramValue, ActiveTextureUnit, Viewport, BindFramebuffer, BindRenderbuffer, BindTexture, BindVertexBuffer, BindElementBuffer, BindVertexArray, PixelStoreUnpack, PixelStoreUnpackPremultiplyAlpha} from './value.ts';
+import {type IValue, ClearColor, ClearDepth, ClearStencil, ColorMask, DepthMask, StencilMask, StencilFunc, StencilOp, StencilTest, DepthRange, DepthTest, DepthFunc, Blend, BlendFunc, BlendColor, ProgramValue, ActiveTextureUnit, Viewport, BindFramebuffer, BindRenderbuffer, BindVertexBuffer, BindElementBuffer, BindVertexArray, PixelStoreUnpack, PixelStoreUnpackPremultiplyAlpha} from './value.ts';
 import {Context} from './context.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {deepEqual} from '../util/util.ts';
@@ -98,10 +98,6 @@ describe('Value classes', () => {
     valueTest(BindRenderbuffer, {
         equality: (a, b) => a === b,
         setValue: context.gl.createRenderbuffer()
-    });
-    valueTest(BindTexture, {
-        equality: (a, b) => a === b,
-        setValue: context.gl.createTexture()
     });
     valueTest(BindVertexBuffer, {
         equality: (a, b) => a === b,

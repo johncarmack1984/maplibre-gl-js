@@ -11,7 +11,8 @@ import {type StencilMode} from './stencil_mode.ts';
 import {ColorMode} from './color_mode.ts';
 import {type CullFaceMode} from './cull_face_mode.ts';
 import {deepEqual} from '../util/util.ts';
-import {ClearColor, ClearDepth, ClearStencil, ColorMask, DepthMask, StencilMask, StencilFunc, StencilOp, StencilTest, DepthRange, DepthTest, DepthFunc, Blend, BlendFunc, BlendColor, BlendEquation, CullFace, CullFaceSide, FrontFace, ProgramValue, ActiveTextureUnit, Viewport, BindFramebuffer, BindRenderbuffer, BindTexture, BindVertexBuffer, BindElementBuffer, BindVertexArray, PixelStoreUnpack, PixelStoreUnpackPremultiplyAlpha, PixelStoreUnpackFlipY} from './value.ts';
+import type {TextureUnitType} from './types.ts';
+import {ClearColor, ClearDepth, ClearStencil, ColorMask, DepthMask, StencilMask, StencilFunc, StencilOp, StencilTest, DepthRange, DepthTest, DepthFunc, Blend, BlendFunc, BlendColor, BlendEquation, CullFace, CullFaceSide, FrontFace, ProgramValue, ActiveTextureUnit, Viewport, BindFramebuffer, BindRenderbuffer, BindVertexBuffer, BindElementBuffer, BindVertexArray, PixelStoreUnpack, PixelStoreUnpackPremultiplyAlpha, PixelStoreUnpackFlipY} from './value.ts';
 
 import type {TriangleIndexArray, LineIndexArray, LineStripIndexArray} from '../data/index_array_type.ts';
 import type {
@@ -60,7 +61,6 @@ export class Context {
     viewport: Viewport;
     bindFramebuffer: BindFramebuffer;
     bindRenderbuffer: BindRenderbuffer;
-    bindTexture: BindTexture;
     bindVertexBuffer: BindVertexBuffer;
     bindElementBuffer: BindElementBuffer;
     bindVertexArray: BindVertexArray;
@@ -70,6 +70,11 @@ export class Context {
     projectionUniformBuffer: UniformBuffer;
     terrainUniformBuffer: UniformBuffer;
     frameUniformBuffer: UniformBuffer;
+    /**
+     * The 2D texture bound to each texture unit, by unit index, as far as it is known: {@link bindTexture2D}
+     * records it, {@link forgetTexture} and {@link setDirty} invalidate it.
+     */
+    _boundTextures: Array<WebGLTexture | null>;
 
     extTextureFilterAnisotropic: EXT_texture_filter_anisotropic | null;
     extTextureFilterAnisotropicMax?: GLfloat;
@@ -100,13 +105,13 @@ export class Context {
         this.viewport = new Viewport(this);
         this.bindFramebuffer = new BindFramebuffer(this);
         this.bindRenderbuffer = new BindRenderbuffer(this);
-        this.bindTexture = new BindTexture(this);
         this.bindVertexBuffer = new BindVertexBuffer(this);
         this.bindElementBuffer = new BindElementBuffer(this);
         this.bindVertexArray = new BindVertexArray(this);
         this.pixelStoreUnpack = new PixelStoreUnpack(this);
         this.pixelStoreUnpackPremultiplyAlpha = new PixelStoreUnpackPremultiplyAlpha(this);
         this.pixelStoreUnpackFlipY = new PixelStoreUnpackFlipY(this);
+        this._boundTextures = [];
 
         this.extTextureFilterAnisotropic = gl.getExtension('EXT_texture_filter_anisotropic');
 
@@ -179,7 +184,7 @@ export class Context {
         this.viewport.dirty = true;
         this.bindFramebuffer.dirty = true;
         this.bindRenderbuffer.dirty = true;
-        this.bindTexture.dirty = true;
+        this._boundTextures = [];
         this.bindVertexBuffer.dirty = true;
         this.bindElementBuffer.dirty = true;
         this.bindVertexArray.dirty = true;
@@ -189,6 +194,29 @@ export class Context {
         this.projectionUniformBuffer.bindingDirty = true;
         this.terrainUniformBuffer.bindingDirty = true;
         this.frameUniformBuffer.bindingDirty = true;
+    }
+
+    /**
+     * Binds a 2D texture to a texture unit, unless it is bound there already. Every 2D texture binding goes
+     * through here so that the bindings stay known; a redundant binding costs two GL calls per draw otherwise.
+     */
+    bindTexture2D(unit: TextureUnitType, texture: WebGLTexture | null): void {
+        const gl = this.gl;
+        const index = unit - gl.TEXTURE0;
+        if (this._boundTextures[index] === texture) return;
+        this.activeTexture.set(unit);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        this._boundTextures[index] = texture;
+    }
+
+    /**
+     * Forgets a texture that is about to be deleted: GL unbinds a deleted texture from every unit.
+     */
+    forgetTexture(texture: WebGLTexture): void {
+        const bound = this._boundTextures;
+        for (let index = 0; index < bound.length; index++) {
+            if (bound[index] === texture) bound[index] = null;
+        }
     }
 
     /**

@@ -195,7 +195,7 @@ export class LineAtlas {
         const gl = context.gl;
         if (!this.texture) {
             this.texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            context.bindTexture2D(context.activeTexture.get(), this.texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -203,7 +203,7 @@ export class LineAtlas {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, this.width, this.height, 0, gl.ALPHA, gl.UNSIGNED_BYTE, this.data);
 
         } else {
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            context.bindTexture2D(context.activeTexture.get(), this.texture);
 
             if (this.dirty) {
                 this.dirty = false;

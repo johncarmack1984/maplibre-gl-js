@@ -210,10 +210,8 @@ export class Program<Us extends UniformBindings> {
 
         // set variables used by the 3d functions defined in _prelude.vertex.glsl
         if (terrain) {
-            context.activeTexture.set(gl.TEXTURE2);
-            gl.bindTexture(gl.TEXTURE_2D, terrain.depthTexture);
-            context.activeTexture.set(gl.TEXTURE3);
-            gl.bindTexture(gl.TEXTURE_2D, terrain.texture);
+            context.bindTexture2D(gl.TEXTURE2, terrain.depthTexture);
+            context.bindTexture2D(gl.TEXTURE3, terrain.texture);
             for (const name in this.terrainUniforms) {
                 this.terrainUniforms[name].set(terrain[name]);
             }

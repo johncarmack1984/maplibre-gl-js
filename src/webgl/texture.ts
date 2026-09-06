@@ -61,6 +61,7 @@ export class Texture {
         this.useMipmap = Boolean(options?.useMipmap);
 
         if (resize && this.size && this.format === gl.RGBA) {
+            context.forgetTexture(this.texture);
             gl.deleteTexture(this.texture);
             this.texture = gl.createTexture();
             this._ownedHandle = this.texture;
@@ -69,7 +70,7 @@ export class Texture {
             this.wrap = undefined;
         }
 
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        context.bindTexture2D(context.activeTexture.get(), this.texture);
 
         context.pixelStoreUnpackFlipY.set(false);
         context.pixelStoreUnpack.set(1);
@@ -151,7 +152,7 @@ export class Texture {
             this.texture = this._ownedHandle;
         }
 
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        context.bindTexture2D(context.activeTexture.get(), this.texture);
 
         if (minFilter === gl.LINEAR_MIPMAP_NEAREST && !this.useMipmap) {
             minFilter = gl.LINEAR;
@@ -172,6 +173,7 @@ export class Texture {
 
     destroy(): void {
         const {gl} = this.context;
+        this.context.forgetTexture(this.texture);
         gl.deleteTexture(this.texture);
         this.texture = null;
         this._ownedHandle = null;

@@ -731,7 +731,7 @@ export class Painter {
         const obj = this._rttObjectRecyclePool.pop();
         if (obj) {
             if (obj.size !== size) {
-                gl.bindTexture(gl.TEXTURE_2D, obj.texture.texture);
+                this.context.bindTexture2D(this.context.activeTexture.get(), obj.texture.texture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
                 obj.texture.size = [size, size];
                 obj.size = size;

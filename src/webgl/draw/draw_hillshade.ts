@@ -75,8 +75,7 @@ function renderHillshade(
 
         const terrainData = painter.getTerrainDataForTile(coord, isRenderingToTexture);
 
-        context.activeTexture.set(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, fbo.colorAttachment.get());
+        context.bindTexture2D(gl.TEXTURE0, fbo.colorAttachment.get());
 
         const projectionData = transform.getProjectionData({
             overscaledTileID: coord,

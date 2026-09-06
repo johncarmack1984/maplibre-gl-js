@@ -45,7 +45,7 @@ function bindLayerOpacity(painter: Painter, width: number, height: number): void
     if (!painter.layerOpacityFbo) {
         const fbo = painter.context.createFramebuffer(width, height, true, true);
         const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        painter.context.bindTexture2D(painter.context.activeTexture.get(), texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -62,7 +62,7 @@ function bindLayerOpacity(painter: Painter, width: number, height: number): void
         return;
     }
     const fbo = painter.layerOpacityFbo;
-    gl.bindTexture(gl.TEXTURE_2D, fbo.colorAttachment.get());
+    painter.context.bindTexture2D(painter.context.activeTexture.get(), fbo.colorAttachment.get());
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     painter.context.bindRenderbuffer.set(fbo.depthAttachment.get());
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_STENCIL, width, height);
@@ -79,8 +79,7 @@ export function drawLayerOpacity(painter: Painter, opacity: number, prepareDrawL
     context.bindFramebuffer.set(prepareDrawLayerOpacityResult.compositeTarget);
     context.viewport.set(prepareDrawLayerOpacityResult.compositeViewport);
 
-    context.activeTexture.set(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, painter.layerOpacityFbo.colorAttachment.get());
+    context.bindTexture2D(gl.TEXTURE0, painter.layerOpacityFbo.colorAttachment.get());
 
     painter.useProgram('layerOpacity').draw(context, gl.TRIANGLES,
         DepthMode.disabled, StencilMode.disabled, painter.colorModeForRenderPass(), CullFaceMode.disabled,
