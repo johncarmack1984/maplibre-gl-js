@@ -19435,7 +19435,7 @@ var TerrainProfiler = class {
 		}
 	}
 	count(what, n = 1) {
-		if (this.current) this.current[what] += n;
+		if (this.current) this.current[what] = (this.current[what] || 0) + n;
 	}
 	collect() {
 		if (!this.ext) return;
@@ -23627,6 +23627,35 @@ var RenderToTexture = class {
 	getTexture(tile) {
 		return tile.getRTT(this._stacks.length - 1).texture;
 	}
+	/**
+	* Drape resolution for a tile: the full rttSize by default; with the rttLod experiment, the power of two
+	* (128 to rttSize) that covers the tile's largest screen extent in device pixels, so far tiles get small drapes.
+	*/
+	_drapeSize(tile) {
+		const lod = typeof window !== "undefined" && window.__terrainProfile?.rttLod;
+		if (!lod) return this.rttSize;
+		const tr = this.painter.transform;
+		const c = tile.tileID.canonical, n = 1 << c.z;
+		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+		for (const [dx, dy] of [
+			[0, 0],
+			[1, 0],
+			[0, 1],
+			[1, 1],
+			[.5, .5]
+		]) {
+			const p = tr.locationToScreenPoint(new MercatorCoordinate((c.x + dx) / n, (c.y + dy) / n).toLngLat());
+			minX = Math.min(minX, p.x);
+			maxX = Math.max(maxX, p.x);
+			minY = Math.min(minY, p.y);
+			maxY = Math.max(maxY, p.y);
+		}
+		const extent = Math.max(maxX - minX, maxY - minY) * this.painter.pixelRatio * (lod > 1 ? lod : 1);
+		if (!isFinite(extent) || extent <= 0) return this.rttSize;
+		let size = 128;
+		while (size < extent && size < this.rttSize) size *= 2;
+		return size;
+	}
 	prepareForRender(style, zoom) {
 		const zoomChanged = zoom !== this._lastPrepareZoom;
 		this._lastPrepareZoom = zoom;
@@ -23666,6 +23695,11 @@ var RenderToTexture = class {
 		for (const tile of this._renderableTiles) for (const source in this._rttFingerprints) {
 			const frameFingerprint = this._rttFingerprints[source][tile.tileID.key];
 			const tileFingerprint = tile.rttFingerprint[source];
+			const rtt = tile.getRTT(0);
+			if (rtt && rtt.size < this.rttSize && this._drapeSize(tile) >= rtt.size * 2) {
+				tile.releaseRTT(this.painter);
+				continue;
+			}
 			if (!frameFingerprint || frameFingerprint.equals(tileFingerprint)) continue;
 			if (zoomChanged && frameFingerprint.equalsIgnoringZoom(tileFingerprint)) this.needsFollowUpFrame = true;
 			else tile.releaseRTT(this.painter);
@@ -23706,7 +23740,9 @@ var RenderToTexture = class {
 				painter.profiler?.count("rttTiles");
 				if (tile.getRTT(stack)) continue;
 				painter.profiler?.count("redrapes");
-				const obj = tile.acquireRTT(painter, stack, this.rttSize);
+				const drapeSize = this._drapeSize(tile);
+				painter.profiler?.count("drapePixels", drapeSize * drapeSize);
+				const obj = tile.acquireRTT(painter, stack, drapeSize);
 				painter.bindRTT(obj);
 				painter.context.clear({
 					color: Color.transparent,
@@ -23719,8 +23755,8 @@ var RenderToTexture = class {
 					painter.context.viewport.set([
 						0,
 						0,
-						this.rttSize,
-						this.rttSize
+						drapeSize,
+						drapeSize
 					]);
 					painter.renderTileClippingMasks(layer, coords, true);
 					painter.renderLayer(painter, painter.style.tileManagers[layer.source], layer, coords, options);
