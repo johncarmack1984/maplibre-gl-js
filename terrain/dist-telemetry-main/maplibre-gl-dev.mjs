@@ -10530,8 +10530,9 @@ var Terrain = class {
 		this.options = options;
 		this.exaggeration = typeof options.exaggeration === "number" ? options.exaggeration : 1;
 		this._terrainSkirtLength = terrainSkirtLength;
-		this.qualityFactor = 2;
-		this.meshSize = 128;
+		const experiment = typeof window !== "undefined" ? window.__terrainProfile : null;
+		this.qualityFactor = experiment?.rttQuality ?? 2;
+		this.meshSize = experiment?.meshSize ?? 128;
 		this._demMatrixCache = /* @__PURE__ */ new Map();
 		this._elevationSamplerCache = /* @__PURE__ */ new Map();
 	}
@@ -19840,7 +19841,7 @@ var Painter = class Painter {
 	* Update the depth framebuffer if the camera has moved or tiles have reloaded.
 	*/
 	maybeDrawDepth() {
-		if (!this.style?.map?.terrain) return;
+		if (!this.style?.map?.terrain || typeof window !== "undefined" && window.__terrainProfile?.noDepth) return;
 		const prevMatrix = this.terrainFacilitator.matrix;
 		const currMatrix = this.transform.modelViewProjectionMatrix;
 		let doUpdate = this.terrainFacilitator.depthDirty;

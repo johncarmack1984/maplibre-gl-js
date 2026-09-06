@@ -10,6 +10,7 @@ window.onerror = (m, s, l) => log('ERROR ' + m + ' @' + l); window.onunhandledre
 const src = q.get('src') || '6.7.0';
 let Map, getVersion;
 if (q.get('profile')) window.__terrainProfile = {};
+if (window.__terrainProfile) { if (q.get('nodepth')) window.__terrainProfile.noDepth = true; if (q.get('rttq')) window.__terrainProfile.rttQuality = +q.get('rttq'); if (q.get('mesh')) window.__terrainProfile.meshSize = +q.get('mesh'); }
 if (src === 'main') ({Map, getVersion} = await import('./dist-main/maplibre-gl-dev.mjs'));
 else if (src.startsWith('telemetry')) ({Map, getVersion} = await import(`./dist-${src}/maplibre-gl-dev.mjs`));
 else ({Map, getVersion} = await import(`./dist-${src}/maplibre-gl.mjs`));
@@ -80,7 +81,7 @@ const DRAG = q.get('drag');
 if (q.get('gesture') === 'pan30') {
     const gesturePitch = +(q.get('gpitch') || 30);
     map.jumpTo({pitch: gesturePitch, zoom, center});
-    log(`gesture pan30: pitch ${gesturePitch}, ${DRAG ? 'touch drags (synthetic pointer events)' : 'easeTo'}, layout ${innerWidth}x${innerHeight} css px, dpr ${devicePixelRatio}`);
+    log(`gesture pan30: pitch ${gesturePitch}, ${DRAG ? 'touch drags' : 'easeTo'}, layout ${innerWidth}x${innerHeight} css px, dpr ${devicePixelRatio}, experiments ${JSON.stringify({noDepth: window.__terrainProfile?.noDepth, rttQuality: window.__terrainProfile?.rttQuality, meshSize: window.__terrainProfile?.meshSize})}`);
     await idle();
     await phase('idle-3s', 3000, async () => {});
     await phase('pan30-east-8s', 8500, () => DRAG ? dragPan(-innerWidth * 0.8, 0, 8000) : new Promise(r => { map.easeTo({center: [center[0] + 0.08, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
