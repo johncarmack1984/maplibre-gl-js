@@ -1,5 +1,6 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>terrain mobile harness</title>
+<html><head><meta charset="utf-8"><meta name="viewport" id="vp" content="width=device-width, initial-scale=1, maximum-scale=1">
+<script>if (new URLSearchParams(location.search).get("desktop")) document.getElementById("vp").setAttribute("content", "width=980");</script><title>terrain mobile harness</title>
 <style>html,body{margin:0;height:100%;background:#000;color:#0f0;font:12px/1.3 -apple-system,Menlo,monospace}#map{position:absolute;inset:0}#hud{position:absolute;left:0;right:0;bottom:0;max-height:45%;overflow:auto;background:rgba(0,0,0,.75);padding:6px;white-space:pre;z-index:9}</style>
 </head><body><div id="map"></div><div id="hud">loading...</div>
 <script type="module">
@@ -61,18 +62,31 @@ map.on('sourcedata', e => { if (e.sourceDataType === 'metadata') log('source rea
 map.on('styleimagemissing', e => log('missing image: ' + e.id));
 const results = {label: q.get('label') || src, version: getVersion(), ua: navigator.userAgent, dpr: devicePixelRatio, size: [innerWidth, innerHeight], terrain: !!style.terrain, center, zoom, phases: []};
 await new Promise(r => map.once('load', r)); log('loaded, waiting for idle (max 30s)'); await idle(30000); log('start phases');
+const canvas = map.getCanvas();
+function dragPan(dx, dy, ms) {
+    // one pointer, moved every frame, like a finger: exercises handler_manager, inertia and the real pan path
+    return new Promise(resolve => {
+        const r = canvas.getBoundingClientRect(); const x0 = r.left + r.width / 2 - dx / 2, y0 = r.top + r.height / 2 - dy / 2;
+        const ev = (type, x, y, extra = {}) => canvas.dispatchEvent(new PointerEvent(type, {pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true, buttons: type === 'pointerup' ? 0 : 1, ...extra}));
+        const t0 = performance.now(); ev('pointerdown', x0, y0);
+        const step = () => { const t = Math.min(1, (performance.now() - t0) / ms); ev('pointermove', x0 + dx * t, y0 + dy * t); if (t < 1) requestAnimationFrame(step); else { ev('pointerup', x0 + dx, y0 + dy); map.once('moveend', resolve); setTimeout(resolve, 1500); } };
+        requestAnimationFrame(step);
+    });
+}
+const DRAG = q.get('drag');
 if (q.get('gesture') === 'pan30') {
     const gesturePitch = +(q.get('gpitch') || 30);
     map.jumpTo({pitch: gesturePitch, zoom, center});
+    log(`gesture pan30: pitch ${gesturePitch}, ${DRAG ? 'touch drags (synthetic pointer events)' : 'easeTo'}, layout ${innerWidth}x${innerHeight} css px, dpr ${devicePixelRatio}`);
     await idle();
     await phase('idle-3s', 3000, async () => {});
-    await phase('pan30-east-8s', 8500, () => new Promise(r => { map.easeTo({center: [center[0] + 0.08, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
-    await phase('pan30-north-8s', 8500, () => new Promise(r => { map.easeTo({center: [center[0] + 0.08, center[1] + 0.05], duration: 8000, easing: t => t}); map.once('moveend', r); }));
+    await phase('pan30-east-8s', 8500, () => DRAG ? dragPan(-innerWidth * 0.8, 0, 8000) : new Promise(r => { map.easeTo({center: [center[0] + 0.08, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
+    await phase('pan30-north-8s', 8500, () => DRAG ? dragPan(0, innerHeight * 0.6, 8000) : new Promise(r => { map.easeTo({center: [center[0] + 0.08, center[1] + 0.05], duration: 8000, easing: t => t}); map.once('moveend', r); }));
     await idle();
-    await phase('pan30-back-8s', 8500, () => new Promise(r => { map.easeTo({center, duration: 8000, easing: t => t}); map.once('moveend', r); }));
+    await phase('pan30-back-8s', 8500, () => DRAG ? dragPan(innerWidth * 0.8, -innerHeight * 0.6, 8000) : new Promise(r => { map.easeTo({center, duration: 8000, easing: t => t}); map.once('moveend', r); }));
     await idle();
     map.jumpTo({zoom: zoom + 2}); await idle();
-    await phase('pan30-z14-east-8s', 8500, () => new Promise(r => { map.easeTo({center: [center[0] + 0.03, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
+    await phase('pan30-z14-east-8s', 8500, () => DRAG ? dragPan(-innerWidth * 0.8, 0, 8000) : new Promise(r => { map.easeTo({center: [center[0] + 0.03, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
     log('DONE. Summary below (screenshot this):'); for (const ph of results.phases) { const q = ph.profile; log(`${ph.label}: frame p50 ${ph.p50} p90 ${ph.p90} max ${ph.max} ms, over 33 ms: ${ph.over33}` + (q ? ` | GPU terrain ${q.gpu_terrain.p50}/${q.gpu_terrain.max} depth ${q.gpu_depth.max} drape max ${q.gpu_rtt.max} (${q.redrapes.total} drapes) cpu ${q.cpuRender.p50}` : '')); } log('device: ' + navigator.userAgent); log('gpu timer: ' + (window.__terrainProfile?.hasGpuTimer ?? 'n/a'));
     window.results = results;
 } else {
