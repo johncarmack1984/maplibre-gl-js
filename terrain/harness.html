@@ -64,12 +64,13 @@ const results = {label: q.get('label') || src, version: getVersion(), ua: naviga
 await new Promise(r => map.once('load', r)); log('loaded, waiting for idle (max 30s)'); await idle(30000); log('start phases');
 const canvas = map.getCanvas();
 function dragPan(dx, dy, ms) {
-    // one pointer, moved every frame, like a finger: exercises handler_manager, inertia and the real pan path
+    // one finger, moved every frame through the touch handlers (maplibre listens to touch and mouse events, not pointer events)
     return new Promise(resolve => {
         const r = canvas.getBoundingClientRect(); const x0 = r.left + r.width / 2 - dx / 2, y0 = r.top + r.height / 2 - dy / 2;
-        const ev = (type, x, y, extra = {}) => canvas.dispatchEvent(new PointerEvent(type, {pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true, buttons: type === 'pointerup' ? 0 : 1, ...extra}));
-        const t0 = performance.now(); ev('pointerdown', x0, y0);
-        const step = () => { const t = Math.min(1, (performance.now() - t0) / ms); ev('pointermove', x0 + dx * t, y0 + dy * t); if (t < 1) requestAnimationFrame(step); else { ev('pointerup', x0 + dx, y0 + dy); map.once('moveend', resolve); setTimeout(resolve, 1500); } };
+        const touch = (x, y) => new Touch({identifier: 1, target: canvas, clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y, radiusX: 8, radiusY: 8, force: 1});
+        const ev = (type, x, y) => { const t = touch(x, y); canvas.dispatchEvent(new TouchEvent(type, {touches: type === 'touchend' ? [] : [t], targetTouches: type === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true})); };
+        const t0 = performance.now(); ev('touchstart', x0, y0);
+        const step = () => { const t = Math.min(1, (performance.now() - t0) / ms); ev('touchmove', x0 + dx * t, y0 + dy * t); if (t < 1) requestAnimationFrame(step); else { ev('touchend', x0 + dx, y0 + dy); let done = false; const finish = () => { if (!done) { done = true; resolve(); } }; map.once('moveend', finish); setTimeout(finish, 2000); } };
         requestAnimationFrame(step);
     });
 }
