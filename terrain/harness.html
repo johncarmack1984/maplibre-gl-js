@@ -24,6 +24,10 @@ catch { log('style: fallback (demotiles + terrain-tiles), mapeak-style.json not 
         layers: [{id: 'basemap', type: 'raster', source: 'basemap'}, {id: 'hills', type: 'hillshade', source: 'terrain'}], terrain: {source: 'terrain', exaggeration: 1}}; }
 // plain https tiles: the site serves its slice variant over http with ?use=slice as well as via the slice:// protocol
 for (const s of Object.values(style.sources)) if (s.tiles) s.tiles = s.tiles.map(u => u.replace(/^slice:\/\//, 'https://'));
+// ablations for attributing the steady frame: ?hide=symbol,circle (layer types set to visibility none), ?nohalo=1 (text-halo-width 0 on every symbol layer), ?maxlayers=N (keep only the first N layers)
+if (q.get('hide')) { const types = new Set(q.get('hide').split(',')); for (const l of style.layers) if (types.has(l.type)) { l.layout = {...(l.layout || {}), visibility: 'none'}; } }
+if (q.get('nohalo')) { for (const l of style.layers) if (l.type === 'symbol' && l.paint && l.paint['text-halo-width'] !== undefined) l.paint['text-halo-width'] = 0; }
+if (q.get('maxlayers')) style.layers = style.layers.slice(0, +q.get('maxlayers'));
 // mapeak enables terrain at runtime (the style ships none); the harness turns it on unless ?noterrain=1
 const demSource = Object.entries(style.sources).find(([, s]) => s.type === 'raster-dem')?.[0];
 if (q.get('noterrain')) delete style.terrain; else if (!style.terrain && demSource) style.terrain = {source: demSource, exaggeration: +(q.get('exaggeration') || 1)};
@@ -81,7 +85,7 @@ const DRAG = q.get('drag');
 if (q.get('gesture') === 'pan30') {
     const gesturePitch = +(q.get('gpitch') || 30);
     map.jumpTo({pitch: gesturePitch, zoom, center});
-    log(`gesture pan30: pitch ${gesturePitch}, ${DRAG ? 'touch drags' : 'easeTo'}, layout ${innerWidth}x${innerHeight} css px, dpr ${devicePixelRatio}, experiments ${JSON.stringify({noDepth: window.__terrainProfile?.noDepth, rttQuality: window.__terrainProfile?.rttQuality, meshSize: window.__terrainProfile?.meshSize, rttLod: window.__terrainProfile?.rttLod})}`);
+    log(`gesture pan30: pitch ${gesturePitch}, ${DRAG ? 'touch drags' : 'easeTo'}, layout ${innerWidth}x${innerHeight} css px, dpr ${devicePixelRatio}, experiments ${JSON.stringify({noDepth: window.__terrainProfile?.noDepth, rttQuality: window.__terrainProfile?.rttQuality, meshSize: window.__terrainProfile?.meshSize, rttLod: window.__terrainProfile?.rttLod, hide: q.get('hide'), nohalo: q.get('nohalo'), maxlayers: q.get('maxlayers')})}`);
     await idle();
     await phase('idle-3s', 3000, async () => {});
     await phase('pan30-east-8s', 8500, () => DRAG ? dragPan(-innerWidth * 0.8, 0, 8000) : new Promise(r => { map.easeTo({center: [center[0] + 0.08, center[1]], duration: 8000, easing: t => t}); map.once('moveend', r); }));
