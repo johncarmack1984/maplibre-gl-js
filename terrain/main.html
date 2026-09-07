@@ -4,8 +4,9 @@
 <style>html,body{margin:0;height:100%;background:#000}#map{position:absolute;inset:0}#tag{position:absolute;left:8px;top:8px;padding:4px 8px;background:rgba(0,0,0,.6);color:#fff;font:12px -apple-system,system-ui,sans-serif;border-radius:4px;pointer-events:none}#tag b{color:#7fdc7f;margin-left:6px}#other{position:absolute;right:8px;top:8px;padding:4px 8px;background:rgba(0,0,0,.6);color:#9cf;font:12px -apple-system,system-ui,sans-serif;border-radius:4px;text-decoration:none}</style>
 </head><body><div id="map"></div><div id="tag">main 6.8.0<b id="fps"></b></div><a id="other" href="./improved.html">improved build</a>
 <script type="module">
-import {Map} from './dist-6.8.0-main/maplibre-gl.mjs';
+import {Map, setRTLTextPlugin} from './dist-6.8.0-main/maplibre-gl.mjs';
 const q = new URLSearchParams(location.search);
+setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.js', true);
 const style = await (await fetch(q.get('style') || './mapeak-style.json')).json();
 for (const s of Object.values(style.sources)) if (s.tiles) s.tiles = s.tiles.map(u => u.replace(/^slice:\/\//, 'https://'));
 const dem = Object.entries(style.sources).find(([, s]) => s.type === 'raster-dem')?.[0];
