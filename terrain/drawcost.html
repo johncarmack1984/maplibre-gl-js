@@ -7,7 +7,7 @@
 // Measures the cost of N WebGL draws per frame on this device, independent of maplibre. Each frame: clear, N draws of a
 // tiny quad (no fragment cost), then a 1px readPixels whose wait is the GPU-side frame cost (same "GPU wait" the terrain
 // harness reports). ?sweep=0,50,100,200,400,800 runs one phase per draw count; ?mode=min|sym: min = same state every draw
-// (drawElements only); tex|uni|ubo|vao (comma list) = one kind of state change before every draw; sym = all the state changes a maplibre symbol draw makes (2 texture binds, 10 uniform calls, one UBO
+// (drawElements only); tex|uni|ubo|vao|range (comma list; range = bindBufferRange to a different 256 B slice of one big UBO per draw, the alternative to ubo) = one kind of state change before every draw; sym = all the state changes a maplibre symbol draw makes (2 texture binds, 10 uniform calls, one UBO
 // bufferSubData, VAO switch) before every drawElements. ?verts=N vertices per draw (default 6). ?secs= seconds per phase.
 const q = new URLSearchParams(location.search);
 const logEl = document.getElementById('log'); const log = s => { logEl.textContent += s + '\n'; console.log(s); };
@@ -39,6 +39,7 @@ gl.uniform1i(uT0, 0); gl.uniform1i(uT1, 1);
 gl.uniformBlockBinding(prog, gl.getUniformBlockIndex(prog, 'Block'), 0);
 const ubo = gl.createBuffer(); gl.bindBuffer(gl.UNIFORM_BUFFER, ubo); gl.bufferData(gl.UNIFORM_BUFFER, 256, gl.DYNAMIC_DRAW); gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, ubo);
 const uboData = new Float32Array(64);
+const bigUbo = gl.createBuffer(); gl.bindBuffer(gl.UNIFORM_BUFFER, bigUbo); gl.bufferData(gl.UNIFORM_BUFFER, 256 * 64, gl.DYNAMIC_DRAW); gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
 // tiny quad: 2px wide at the canvas corner, so fragments are negligible. verts = 6 draws one quad; more verts repeat it.
 function makeVao(seed) {
     const n = Math.max(6, verts); const pos = new Float32Array(n * 2), tex = new Float32Array(n * 2), idx = new Uint16Array(n);
@@ -65,6 +66,7 @@ function frame(n) {
         if (has('uni')) { m[12] = i * 1e-6; gl.uniformMatrix4fv(uMatrix, false, m); gl.uniform2f(uOff, i * 1e-6, 0); for (let k = 0; k < 6; k++) gl.uniform1f(uF[k], i + k); }
         if (has('ubo')) { uboData[0] = i; gl.bufferSubData(gl.UNIFORM_BUFFER, 0, uboData); }
         if (has('vao')) gl.bindVertexArray(vaos[i & 1].vao);
+        if (modes.has('range')) gl.bindBufferRange(gl.UNIFORM_BUFFER, 0, bigUbo, (i & 63) * 256, 256);
         gl.drawElements(gl.TRIANGLES, vaos[i & 1].n, gl.UNSIGNED_SHORT, 0);
     }
     const t = performance.now(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return performance.now() - t;
