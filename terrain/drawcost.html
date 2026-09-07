@@ -7,7 +7,7 @@
 // Measures the cost of N WebGL draws per frame on this device, independent of maplibre. Each frame: clear, N draws of a
 // tiny quad (no fragment cost), then a 1px readPixels whose wait is the GPU-side frame cost (same "GPU wait" the terrain
 // harness reports). ?sweep=0,50,100,200,400,800 runs one phase per draw count; ?mode=min|sym: min = same state every draw
-// (drawElements only); sym = the state changes a maplibre symbol draw makes (2 texture binds, 10 uniform calls, one UBO
+// (drawElements only); tex|uni|ubo|vao (comma list) = one kind of state change before every draw; sym = all the state changes a maplibre symbol draw makes (2 texture binds, 10 uniform calls, one UBO
 // bufferSubData, VAO switch) before every drawElements. ?verts=N vertices per draw (default 6). ?secs= seconds per phase.
 const q = new URLSearchParams(location.search);
 const logEl = document.getElementById('log'); const log = s => { logEl.textContent += s + '\n'; console.log(s); };
@@ -16,7 +16,7 @@ const dpr = +(q.get('dpr') || devicePixelRatio);
 canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
 const gl = canvas.getContext('webgl2', {antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance'});
 if (!gl) { log('no webgl2'); }
-const mode = q.get('mode') || 'sym';
+const mode = q.get('mode') || 'sym'; const modes = new Set(mode.split(',')); const has = m => modes.has(m) || modes.has('sym');
 const verts = +(q.get('verts') || 6);
 const secs = +(q.get('secs') || 4);
 const sweep = (q.get('sweep') || '0,50,100,200,400,800').split(',').map(Number);
@@ -61,14 +61,10 @@ const px = new Uint8Array(4);
 function frame(n) {
     gl.clearColor(0.05, 0.05, 0.1, 1); gl.clear(gl.COLOR_BUFFER_BIT);
     for (let i = 0; i < n; i++) {
-        if (mode === 'sym') {
-            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texes[i & 1]);
-            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texes[2 + (i & 1)]);
-            m[12] = i * 1e-6; gl.uniformMatrix4fv(uMatrix, false, m); gl.uniform2f(uOff, i * 1e-6, 0);
-            for (let k = 0; k < 6; k++) gl.uniform1f(uF[k], i + k);
-            uboData[0] = i; gl.bufferSubData(gl.UNIFORM_BUFFER, 0, uboData);
-            gl.bindVertexArray(vaos[i & 1].vao);
-        }
+        if (has('tex')) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texes[i & 1]); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texes[2 + (i & 1)]); }
+        if (has('uni')) { m[12] = i * 1e-6; gl.uniformMatrix4fv(uMatrix, false, m); gl.uniform2f(uOff, i * 1e-6, 0); for (let k = 0; k < 6; k++) gl.uniform1f(uF[k], i + k); }
+        if (has('ubo')) { uboData[0] = i; gl.bufferSubData(gl.UNIFORM_BUFFER, 0, uboData); }
+        if (has('vao')) gl.bindVertexArray(vaos[i & 1].vao);
         gl.drawElements(gl.TRIANGLES, vaos[i & 1].n, gl.UNSIGNED_SHORT, 0);
     }
     const t = performance.now(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return performance.now() - t;
