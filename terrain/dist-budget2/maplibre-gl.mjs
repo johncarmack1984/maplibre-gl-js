@@ -2,7 +2,7 @@
 * MapLibre GL JS
 * @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.7.0/LICENSE.txt
 */
-import { $ as unprojectFromWorldCoordinates, $n as degreesToRadians, $r as transformMat4, $t as EvaluationParameters, A as evaluateSizeForZoom, Ai as rotateY$1, An as sameOrigin, Ar as rollPitchBearingToQuat, At as Uniform1i, B as isCluster, Bi as isOffscreenCanvasDistorted, Bn as angleToRotateBetweenVectors2D, Br as pixelsToTileUnits, Bt as CollisionCircleLayoutArray, C as addDynamicAttributes, Ci as fromScaling, Cn as AJAXError, Cr as pick, Ct as renderColorRamp, Di as ortho, Dn as getReferrer, Dr as readImageUsingVideoFrame, Dt as polygonIntersectsPolygon, E as TextAnchorEnum, Ei as multiply, En as getJSON, Er as rayPlaneIntersection, Et as isCircleStyleLayer, F as potpack, Fi as fromRotation, Fn as AbortError, Fr as translatePosition, Ft as UniformColorArray, G as calculateTileMatrix, Gn as clone$2, Gr as sqrLen, Gt as RasterBoundsArray, H as isLineStyleLayer, Hi as Point, Hn as arrayBufferToImageBitmap, Hr as create$3, Ht as Pos3dArray, I as isStyleImageWebGLData, Ii as create$2, In as isAbortError, Ir as uniqueId, It as UniformFloatArray, J as cameraMercatorCoordinateFromCenterAndRotation, Jn as createMat4f64, Jr as fromValues, Jt as isRasterStyleLayer, K as cameraDirectionFromPitchBearing, Kn as createIdentityMat4f32, Kr as zero, Kt as TriangleIndexArray, L as renderStyleImage, Li as determinant, Ln as throwIfAborted, Lr as warnOnce, Lt as UniformMatrix4f, M as getAnchorAlignment, Mi as scale, Mn as getProtocol, Mr as sphericalToCartesian, Mt as Uniform3f, Ni as translate, Nn as removeProtocol, Nr as subscribe, Nt as Uniform4f, O as clipLine, Oi as perspective, On as getVideo, Or as remapSaturate, Ot as toEvaluationFeature, P as ImagePosition, Pi as create$4, Pn as config, Pr as threePlaneIntersection, Pt as UniformColor, Q as tileCoordinatesToMercatorCoordinates, Qn as defaultEasing, Qr as scale$2, Qt as Transitionable, R as parseGlyphPbf, Ri as invert, Rr as wrap, Rt as SegmentVector, S as SymbolBucket, Si as exactEquals, Sn as Evented, Sr as parseCacheControl, St as isHeatmapStyleLayer, T as getAnchorJustification, Ti as invert$1, Tn as getArrayBuffer, Tr as radiansToDegrees, Tt as RGBAImage, Un as bezier, Ur as length$1, Ut as PosArray, V as collisionCircleLayout, Vi as offscreenCanvasSupported, Vn as arrayBufferToImage, Vr as EXTENT, Vt as LineStripIndexArray, W as isFillExtrusionStyleLayer, Wn as clamp, Wr as scale$3, Wt as QuadTriangleArray, X as maxMercatorHorizonAngle, Xn as createVec4f64, Xr as slerp, Xt as Properties, Y as getMercatorHorizon, Yn as createVec3f64, Yr as multiply$1, Yt as DataConstantProperty, Z as projectToWorldCoordinates, Zn as deepEqual, Zr as mul, Zt as TRANSITION_SUFFIX, _ as createStyleLayer, _i as zero$1, _n as diff, _r as isWorker, _t as isColorReliefStyleLayer, a as GeoJSONFeature, ai as length, an as emitValidationErrors, ar as filterObject, at as mercatorYfromLat, b as isBackgroundStyleLayer, bi as create$1, bn as ErrorEvent, br as mod, bt as isHillshadeStyleLayer, ci as rotateX$1, cn as validateStyleAndEmit, cr as getAngleDelta, ct as earthRadius, d as OverscaledTileID, di as scale$1, dn as featureFilter, dr as getRollPitchBearing, dt as Bounds, ei as add, er as differenceOfAnglesDegrees, et as MercatorCoordinate, f as UnwrappedTileID, fi as scaleAndAdd, fr as isImageBitmap, ft as isFillStyleLayer, g as Actor, gi as transformQuat, gn as ValidationError, gr as isTouchableOrPointableType, gt as SubdivisionGranularitySetting, h as isInBoundsForZoomLngLat, hi as transformMat4$1, hn as Color, hr as isTouchableEvent, ht as SubdivisionGranularityExpression, ii as len, in as SPEC_SOURCE_TYPES, ir as extend, it as mercatorXfromLng, ji as rotateZ, jn as addProtocol, jr as scaleZoom, jt as Uniform2f, k as evaluateSizeForFeature, ki as rotateX, kn as makeRequest, kr as rollPitchBearingEqual, kt as Uniform1f, li as rotateY, ln as emptyStyle, lr as getEdgeTiles, m as compareTileId, mi as transformMat3, mn as ProjectionDefinition, mr as isSafari, mt as SOUTH_POLE_Y, n as TileCache, ni as cross, nn as ZoomHistory, nr as ensureError, nt as latFromMercatorY, oi as negate, on as validateAndEmit, or as findLineIntersection, ot as mercatorZfromAltitude, p as calculateTileKey, pi as sub, pn as interpolateFactory, pr as isPointableEvent, pt as NORTH_POLE_Y, q as cameraMercatorCoordinate, qn as createIdentityMat4f64, qr as fromEuler, qt as createLayout, ri as dot, rr as evaluateZoomSnap, rt as lngFromMercatorX, s as GEOJSON_TILE_LAYER_NAME, si as normalize, sn as validateStyle, sr as getAABB, st as LngLat, ti as clone, tn as codePointUsesLocalIdeographFontFamily, tr as distanceOfAnglesRadians, tt as altitudeFromMercatorZ, u as CanonicalTileID, ui as rotateZ$1, ut as EXTENT_BOUNDS, v as isCustomStyleLayer, vi as clone$1, vn as derefLayers, vr as lerp, w as getOverlapMode, wi as identity, wn as GLOBAL_DISPATCHER_ID, wr as pointPlaneSignedDistance, wt as AlphaImage, x as isSymbolStyleLayer, xi as equals, xn as Event, xr as nextPowerOfTwo, xt as HEATMAP_FULL_RENDER_FBO_KEY, y as validateCustomStyleLayer, yi as copy, yn as latest, yr as mapObject, yt as Texture, zi as rotate, zn as MAX_VALID_LATITUDE, zr as zoomScale, zt as CollisionBoxArray } from "./maplibre-gl-shared-dev.mjs";
+import { $ as unprojectFromWorldCoordinates, $n as degreesToRadians, $r as transformMat4, $t as EvaluationParameters, A as evaluateSizeForZoom, Ai as perspective, An as sameOrigin, Ar as rollPitchBearingToQuat, At as Uniform1i, B as isCluster, Bi as invert, Bn as angleToRotateBetweenVectors2D, Br as pixelsToTileUnits, Bt as CollisionCircleLayoutArray, C as addDynamicAttributes, Ci as equals, Cn as AJAXError, Cr as pick, Ct as renderColorRamp, Di as invert$1, Dn as getReferrer, Dr as readImageUsingVideoFrame, Dt as polygonIntersectsPolygon, E as TextAnchorEnum, Ei as identity, En as getJSON, Er as rayPlaneIntersection, Et as isCircleStyleLayer, F as potpack, Fi as translate, Fn as AbortError, Fr as translatePosition, Ft as UniformColorArray, G as calculateTileMatrix, Gn as clone$2, Gr as sqrLen, Gt as RasterBoundsArray, H as isLineStyleLayer, Hi as isOffscreenCanvasDistorted, Hn as arrayBufferToImageBitmap, Hr as create$3, Ht as Pos3dArray, I as isStyleImageWebGLData, Ii as create$4, In as isAbortError, Ir as uniqueId, It as UniformFloatArray, J as cameraMercatorCoordinateFromCenterAndRotation, Jn as createMat4f64, Jr as fromValues, Jt as isRasterStyleLayer, K as cameraDirectionFromPitchBearing, Kn as createIdentityMat4f32, Kr as zero, Kt as TriangleIndexArray, L as renderStyleImage, Li as fromRotation, Ln as throwIfAborted, Lr as warnOnce, Lt as UniformMatrix4f, M as getAnchorAlignment, Mi as rotateY$1, Mn as getProtocol, Mr as sphericalToCartesian, Mt as Uniform3f, Ni as rotateZ, Nn as removeProtocol, Nr as subscribe, Nt as Uniform4f, O as clipLine, Oi as multiply, On as getVideo, Or as remapSaturate, Ot as toEvaluationFeature, P as ImagePosition, Pi as scale, Pn as config, Pr as threePlaneIntersection, Pt as UniformColor, Q as tileCoordinatesToMercatorCoordinates, Qn as defaultEasing, Qr as scale$2, Qt as Transitionable, R as parseGlyphPbf, Ri as create$2, Rr as wrap, Rt as SegmentVector, S as SymbolBucket, Si as create$1, Sn as Evented, Sr as parseCacheControl, St as isHeatmapStyleLayer, T as getAnchorJustification, Ti as fromScaling, Tn as getArrayBuffer, Tr as radiansToDegrees, Tt as RGBAImage, Ui as offscreenCanvasSupported, Un as bezier, Ur as length$1, Ut as PosArray, V as collisionCircleLayout, Vi as rotate, Vn as arrayBufferToImage, Vr as EXTENT, Vt as LineStripIndexArray, W as isFillExtrusionStyleLayer, Wi as Point, Wn as clamp, Wr as scale$3, Wt as QuadTriangleArray, X as maxMercatorHorizonAngle, Xn as createVec4f64, Xr as slerp, Xt as Properties, Y as getMercatorHorizon, Yn as createVec3f64, Yr as multiply$1, Yt as DataConstantProperty, Z as projectToWorldCoordinates, Zn as deepEqual, Zr as mul, Zt as TRANSITION_SUFFIX, _ as createStyleLayer, _i as transformMat4$1, _n as diff, _r as isWorker, _t as isColorReliefStyleLayer, a as GeoJSONFeature, ai as len, an as emitValidationErrors, ar as filterObject, at as mercatorYfromLat, b as isBackgroundStyleLayer, bi as clone$1, bn as ErrorEvent, br as mod, bt as isHillshadeStyleLayer, ci as normalize, cn as validateStyleAndEmit, cr as getAngleDelta, ct as earthRadius, d as OverscaledTileID, di as rotateZ$1, dn as featureFilter, dr as getRollPitchBearing, dt as Bounds, ei as add, er as differenceOfAnglesDegrees, et as MercatorCoordinate, f as UnwrappedTileID, fi as scale$1, fr as isImageBitmap, ft as isFillStyleLayer, g as Actor, gi as transformMat3, gn as ValidationError, gr as isTouchableOrPointableType, gt as SubdivisionGranularitySetting, h as isInBoundsForZoomLngLat, hi as subtract, hn as Color, hr as isTouchableEvent, ht as SubdivisionGranularityExpression, ii as dot, in as SPEC_SOURCE_TYPES, ir as extend, it as mercatorXfromLng, ji as rotateX, jn as addProtocol, jr as scaleZoom, jt as Uniform2f, k as evaluateSizeForFeature, ki as ortho, kn as makeRequest, kr as rollPitchBearingEqual, kt as Uniform1f, li as rotateX$1, ln as emptyStyle, lr as getEdgeTiles, m as compareTileId, mi as sub, mn as ProjectionDefinition, mr as isSafari, mt as SOUTH_POLE_Y, n as TileCache, ni as cross, nn as ZoomHistory, nr as ensureError, nt as latFromMercatorY, oi as length, on as validateAndEmit, or as findLineIntersection, ot as mercatorZfromAltitude, p as calculateTileKey, pi as scaleAndAdd, pn as interpolateFactory, pr as isPointableEvent, pt as NORTH_POLE_Y, q as cameraMercatorCoordinate, qn as createIdentityMat4f64, qr as fromEuler, qt as createLayout, ri as distance, rr as evaluateZoomSnap, rt as lngFromMercatorX, s as GEOJSON_TILE_LAYER_NAME, si as negate, sn as validateStyle, sr as getAABB, st as LngLat, ti as clone, tn as codePointUsesLocalIdeographFontFamily, tr as distanceOfAnglesRadians, tt as altitudeFromMercatorZ, u as CanonicalTileID, ui as rotateY, ut as EXTENT_BOUNDS, v as isCustomStyleLayer, vi as transformQuat, vn as derefLayers, vr as lerp, w as getOverlapMode, wi as exactEquals, wn as GLOBAL_DISPATCHER_ID, wr as pointPlaneSignedDistance, wt as AlphaImage, x as isSymbolStyleLayer, xi as copy, xn as Event, xr as nextPowerOfTwo, xt as HEATMAP_FULL_RENDER_FBO_KEY, y as validateCustomStyleLayer, yi as zero$1, yn as latest, yr as mapObject, yt as Texture, zi as determinant, zn as MAX_VALID_LATITUDE, zr as zoomScale, zt as CollisionBoxArray } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
 var version$2 = "6.7.0";
 //#endregion
@@ -10190,6 +10190,7 @@ var TransformHelper = class {
 			const halfFov = this.fovInRadians / 2;
 			this._cameraToCenterDistance = .5 / Math.tan(halfFov) * this._height;
 		}
+		this._pixelPerMeter = mercatorZfromAltitude(1, this.center.lat) * this.worldSize;
 		this._callbacks.calcMatrices();
 	}
 	calculateCenterFromCameraLngLatAlt(lnglat, alt, bearing, pitch) {
@@ -10262,12 +10263,6 @@ var TransformHelper = class {
 		const pitch = this.pitchInRadians;
 		const offset = Math.tan(pitch) * (this.cameraToCenterDistance || 1);
 		return this.centerPoint.add(new Point(offset * Math.sin(this.rollInRadians), offset * Math.cos(this.rollInRadians)));
-	}
-	getCameraAltitude() {
-		return Math.cos(this.pitchInRadians) * this._cameraToCenterDistance / this._pixelPerMeter + this.elevation;
-	}
-	getCameraLngLat() {
-		return cameraMercatorCoordinate(this).toLngLat();
 	}
 	getMercatorTileCoordinates(overscaledTileID) {
 		if (!overscaledTileID) return [
@@ -11570,6 +11565,27 @@ var MercatorTransform = class MercatorTransform {
 	calculateCenterFromCameraLngLatAlt(lnglat, alt, bearing, pitch) {
 		return this._helper.calculateCenterFromCameraLngLatAlt(lnglat, alt, bearing, pitch);
 	}
+	calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo) {
+		const fromMercator = MercatorCoordinate.fromLngLat(from, altitudeFrom);
+		const toMercator = MercatorCoordinate.fromLngLat(to, altitudeTo);
+		const dx = toMercator.x - fromMercator.x;
+		const dy = toMercator.y - fromMercator.y;
+		const dz = toMercator.z - fromMercator.z;
+		const distance3D = Math.hypot(dx, dy, dz);
+		if (distance3D === 0) throw new Error("Can't calculate camera options with same From and To");
+		const groundDistance = Math.hypot(dx, dy);
+		const zoom = scaleZoom(this.cameraToCenterDistance / distance3D / this.tileSize);
+		const bearing = radiansToDegrees(Math.atan2(dx, -dy));
+		let pitch = radiansToDegrees(Math.acos(groundDistance / distance3D));
+		pitch = dz < 0 ? 90 - pitch : 90 + pitch;
+		return {
+			center: toMercator.toLngLat(),
+			elevation: altitudeTo,
+			zoom,
+			pitch,
+			bearing
+		};
+	}
 	_calculateNearFarZIfNeeded(cameraToSeaLevelDistance, limitedPitchRadians, offset) {
 		if (!this._helper.autoCalculateNearFarZ) return;
 		const minElevation = Math.min(this.elevation, this.minElevationForCurrentTile, this.getCameraAltitude() - 100);
@@ -11592,7 +11608,6 @@ var MercatorTransform = class MercatorTransform {
 		const offset = this.centerOffset;
 		const point = projectToWorldCoordinates(this.worldSize, this.center);
 		const x = point.x, y = point.y;
-		this._helper._pixelPerMeter = mercatorZfromAltitude(1, this.center.lat) * this.worldSize;
 		const limitedPitchRadians = degreesToRadians(Math.min(this.pitch, maxMercatorHorizonAngle));
 		const cameraToSeaLevelDistance = Math.max(this._helper.cameraToCenterDistance / 2, this._helper.cameraToCenterDistance + this._helper._elevation * this._helper._pixelPerMeter / Math.cos(limitedPitchRadians));
 		this._calculateNearFarZIfNeeded(cameraToSeaLevelDistance, limitedPitchRadians, offset);
@@ -11718,7 +11733,7 @@ var MercatorTransform = class MercatorTransform {
 		return this._helper.getCameraPoint();
 	}
 	getCameraAltitude() {
-		return this._helper.getCameraAltitude();
+		return Math.cos(this.pitchInRadians) * this.cameraToCenterDistance / this.pixelsPerMeter + this.elevation;
 	}
 	getCameraLngLat() {
 		const pixelPerMeter = mercatorZfromAltitude(1, this.center.lat) * this.worldSize;
@@ -12984,6 +12999,10 @@ const GLOBE_SAMPLES = 256;
 const GLOBE_BISECT_EPSILON_T = 1e-12;
 /** Latitudes outside the mercator range project past the world edge; the globe mesh still covers them. */
 const MAX_MERCATOR_Y = 1 - 1e-9;
+/** Two points on the unit globe closer than this, a micrometre, are the same point. */
+const SAME_POINT_DISTANCE = 1e-12;
+/** A camera whose horizontal offset is this small relative to its distance is straight above the center. */
+const STRAIGHT_ABOVE_RATIO = 1e-9;
 var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 	get pixelsToClipSpaceMatrix() {
 		return this._helper.pixelsToClipSpaceMatrix;
@@ -13456,14 +13475,20 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 	getCameraPoint() {
 		return this._helper.getCameraPoint();
 	}
+	/**
+	* The altitude of the rendered camera above sea level. The sphere keeps the center point at sea level whatever its
+	* elevation (`_calcMatrices` does not apply it), so unlike on mercator the center elevation does not lift the camera.
+	* {@link calculateCameraOptionsFromTo} is the inverse.
+	*/
 	getCameraAltitude() {
-		return this._helper.getCameraAltitude();
+		return (length(this._cameraPosition) - 1) * earthRadius;
 	}
 	getCameraLngLat() {
-		return this._helper.getCameraLngLat();
+		const surface = createVec3f64();
+		normalize(surface, this._cameraPosition);
+		return sphereSurfacePointToCoordinates(surface);
 	}
 	lngLatToCameraDepth(lngLat, elevation) {
-		if (!this._globeViewProjMatrixF64) return 1;
 		const vec = angularCoordinatesToSurfaceVector(lngLat);
 		scale$1(vec, vec, 1 + elevation / earthRadius);
 		const result = createVec4f64();
@@ -13529,6 +13554,34 @@ var VerticalPerspectiveTransform = class VerticalPerspectiveTransform {
 	}
 	calculateCenterFromCameraLngLatAlt(lngLat, alt, bearing, pitch) {
 		return this._helper.calculateCenterFromCameraLngLatAlt(lngLat, alt, bearing, pitch);
+	}
+	/**
+	* Inverts the camera placement of `_calcMatrices` in unit-globe coordinates: the camera sits at radius
+	* `1 + altitudeFrom / earthRadius` and looks at the center on the sea-level sphere, the target altitude only becoming
+	* the center elevation (the inverse of {@link getCameraAltitude}). Pitch and bearing are read in the center's local
+	* frame, +z up, +y north, +x east. A camera straight above the center keeps the transform's bearing.
+	*/
+	calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo) {
+		const center = LngLat.convert(to);
+		const camera = angularCoordinatesToSurfaceVector(LngLat.convert(from));
+		scale$1(camera, camera, 1 + altitudeFrom / earthRadius);
+		const target = angularCoordinatesToSurfaceVector(center);
+		const targetAtAltitude = scale$1(createVec3f64(), target, 1 + altitudeTo / earthRadius);
+		const toCamera = subtract(createVec3f64(), camera, target);
+		const distance$1 = length(toCamera);
+		if (distance$1 < SAME_POINT_DISTANCE || distance(camera, targetAtAltitude) < SAME_POINT_DISTANCE) throw new Error("Can't calculate camera options with same From and To");
+		const zero = createVec3f64();
+		rotateY(toCamera, toCamera, zero, -degreesToRadians(center.lng));
+		rotateX$1(toCamera, toCamera, zero, degreesToRadians(center.lat));
+		const pitch = radiansToDegrees(Math.acos(clamp(toCamera[2] / distance$1, -1, 1)));
+		const bearing = Math.hypot(toCamera[0], toCamera[1]) < distance$1 * STRAIGHT_ABOVE_RATIO ? this.bearing : radiansToDegrees(Math.atan2(-toCamera[0], -toCamera[1]));
+		return {
+			center,
+			elevation: altitudeTo,
+			zoom: scaleZoom(this.cameraToCenterDistance / distance$1 / getGlobeRadiusPixels(this.tileSize, center.lat)),
+			pitch,
+			bearing
+		};
 	}
 	/**
 	* Note: automatically adjusts zoom to keep planet size consistent
@@ -14102,11 +14155,13 @@ var GlobeTransform = class GlobeTransform {
 	getCameraPoint() {
 		return this._helper.getCameraPoint();
 	}
+	/** The camera of the child that renders the current frame. */
 	getCameraAltitude() {
-		return this._helper.getCameraAltitude();
+		return this.currentTransform.getCameraAltitude();
 	}
+	/** See {@link getCameraAltitude}. */
 	getCameraLngLat() {
-		return this._helper.getCameraLngLat();
+		return this.currentTransform.getCameraLngLat();
 	}
 	lngLatToCameraDepth(lngLat, elevation) {
 		return this.currentTransform.lngLatToCameraDepth(lngLat, elevation);
@@ -14120,6 +14175,10 @@ var GlobeTransform = class GlobeTransform {
 	}
 	calculateCenterFromCameraLngLatAlt(lngLat, alt, bearing, pitch) {
 		return this._helper.calculateCenterFromCameraLngLatAlt(lngLat, alt, bearing, pitch);
+	}
+	/** See {@link getCameraAltitude}. */
+	calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo) {
+		return this.currentTransform.calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo);
 	}
 	/**
 	* Note: automatically adjusts zoom to keep planet size consistent
@@ -22991,27 +23050,6 @@ var Camera = class extends Evented {
 		if (rollChanged) this.fire(new MapMovementEvent("rollstart", eventData)).fire(new MapMovementEvent("roll", eventData)).fire(new MapMovementEvent("rollend", eventData));
 		return this.fire(new MapMovementEvent("moveend", eventData));
 	}
-	calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo = 0) {
-		const fromMercator = MercatorCoordinate.fromLngLat(from, altitudeFrom);
-		const toMercator = MercatorCoordinate.fromLngLat(to, altitudeTo);
-		const dx = toMercator.x - fromMercator.x;
-		const dy = toMercator.y - fromMercator.y;
-		const dz = toMercator.z - fromMercator.z;
-		const distance3D = Math.hypot(dx, dy, dz);
-		if (distance3D === 0) throw new Error("Can't calculate camera options with same From and To");
-		const groundDistance = Math.hypot(dx, dy);
-		const zoom = scaleZoom(this.transform.cameraToCenterDistance / distance3D / this.transform.tileSize);
-		const bearing = Math.atan2(dx, -dy) * 180 / Math.PI;
-		let pitch = Math.acos(groundDistance / distance3D) * 180 / Math.PI;
-		pitch = dz < 0 ? 90 - pitch : 90 + pitch;
-		return {
-			center: toMercator.toLngLat(),
-			elevation: altitudeTo,
-			zoom,
-			pitch,
-			bearing
-		};
-	}
 	calculateCameraOptionsFromCameraLngLatAltRotation(cameraLngLat, cameraAlt, bearing, pitch, roll) {
 		const centerInfo = this.transform.calculateCenterFromCameraLngLatAlt(cameraLngLat, cameraAlt, bearing, pitch);
 		return {
@@ -23139,7 +23177,7 @@ var Camera = class extends Evented {
 		const cameraAltitude = tr.getCameraAltitude();
 		const minAltitude = this.terrain ? this.terrain.getElevationForLngLatZoom(cameraLngLat, tr.zoom) : 0;
 		if (cameraAltitude < minAltitude) {
-			const newCamera = this.calculateCameraOptionsFromTo(cameraLngLat, minAltitude, tr.center, tr.elevation);
+			const newCamera = tr.calculateCameraOptionsFromTo(cameraLngLat, minAltitude, tr.center, tr.elevation);
 			return {
 				pitch: newCamera.pitch,
 				zoom: newCamera.zoom
@@ -23724,23 +23762,17 @@ var RenderToTexture = class {
 		}
 		this.needsFollowUpFrame = false;
 		const moving = zoomChanged || this.painter.options.moving;
-		let staleTileReleased = false;
+		const staleTiles = [];
 		for (const tile of this._renderableTiles) {
 			const difference = this._textureDifference(tile);
 			if (difference === "none") continue;
-			if (difference === "zoom" && moving || difference === "visibleLayers" && zoomChanged) {
-				this.needsFollowUpFrame = true;
-				continue;
-			}
-			if (difference === "zoom" || difference === "sourceTiles") {
-				if (staleTileReleased) {
-					this.needsFollowUpFrame = true;
-					continue;
-				}
-				staleTileReleased = true;
-			}
-			tile.releaseRTT(this.painter);
+			if (difference === "zoom" && moving || difference === "visibleLayers" && zoomChanged) this.needsFollowUpFrame = true;
+			else if (difference === "zoom" || difference === "sourceTiles") staleTiles.push(tile);
+			else tile.releaseRTT(this.painter);
 		}
+		const [nearestStaleTile, ...laterStaleTiles] = staleTiles;
+		nearestStaleTile?.releaseRTT(this.painter);
+		if (laterStaleTiles.length > 0) this.needsFollowUpFrame = true;
 	}
 	/**
 	* The most severe difference, over the sources rendered to texture, between the tile's cached textures
@@ -24855,6 +24887,7 @@ var Map$1 = class extends Evented {
 	}
 	/**
 	* Given a camera 'from' position and a position to look at (`to`), calculates zoom and camera rotation and returns them as {@link CameraOptions}.
+	* Under `globe` and `vertical-perspective` the calculation follows the sphere while the map renders as a globe, keeping the point looked at on the sea-level sphere; `altitudeTo` only becomes the center elevation.
 	* @param from - The camera to look from
 	* @param altitudeFrom - The altitude of the camera to look from
 	* @param to - The center to look at
@@ -24874,7 +24907,7 @@ var Map$1 = class extends Evented {
 	*/
 	calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo) {
 		if (altitudeTo == null && this.terrain) altitudeTo = this.terrain.getElevationForLngLat(to, this._camera.transform);
-		return this._camera.calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo);
+		return this._camera.transform.calculateCameraOptionsFromTo(from, altitudeFrom, to, altitudeTo ?? 0);
 	}
 	/**
 	* Resizes the map according to the dimensions of its
