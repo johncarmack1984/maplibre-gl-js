@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>emptyTileBehavior on Mapeak's Open Heatmap (maplibre-gl-js #8335)</title>
+    <link rel="stylesheet" href="./maplibre-gl.css">
+    <style>
+        html, body { height: 100%; }
+        body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: #222; display: flex; flex-direction: column; }
+        header { padding: 8px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+        header a { color: inherit; }
+        #maps { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; }
+        .pane { position: relative; border-right: 1px solid #ddd; }
+        .pane .map { position: absolute; inset: 0; }
+        .label { position: absolute; top: 8px; left: 8px; right: 8px; background: rgba(255,255,255,.93); padding: 6px 10px; border-radius: 4px; z-index: 1; }
+        .stat { position: absolute; bottom: 8px; left: 8px; background: rgba(255,255,255,.93); padding: 4px 8px; border-radius: 4px; z-index: 1; font: 12px/1.4 ui-monospace, Menlo, monospace; }
+        code { background: #f1f1f1; padding: 0 3px; border-radius: 2px; }
+        select { font: inherit; }
+    </style>
+</head>
+<body>
+<header>
+    <span><strong>emptyTileBehavior</strong> on Mapeak's Open Heatmap: OSM traces as vector tiles, z7 to z12, HTTP 418 with an empty body where there is no tile. Source option from <a href="https://github.com/maplibre/maplibre-gl-js/pull/8335">maplibre-gl-js #8335</a>, both sources set <code>maxzoom: 12</code>, the deepest level the heatmap has.</span>
+    <label>Right pane's answer for a missing tile: <select id="mode"><option value="204">empty body (204)</option><option value="404">404</option></select></label>
+    <label><input type="checkbox" id="sync" checked> keep the views in sync</label>
+</header>
+<div id="maps">
+    <div class="pane">
+        <div id="left" class="map"></div>
+        <div class="label"><b>Mapeak today</b>: the real tiles, the 418 swallowed in <code>map.on('error')</code>. The z12 request fails and nothing asks for a coarser tile until the map moves.</div>
+        <div class="stat" id="left-stat"></div>
+    </div>
+    <div class="pane">
+        <div id="right" class="map"></div>
+        <div class="label"><b>With #8335</b>: the same tiles through a protocol handler that answers the 418 with an empty body (or a 404), and <code>emptyTileBehavior: 'missing'</code> on the source, so the z11 tile shows through right away.</div>
+        <div class="stat" id="right-stat"></div>
+    </div>
+</div>
+<script type="module">
+    import * as maplibregl from './maplibre-gl.mjs';
+
+    const TILES = 'https://slice.israelhikingmap.workers.dev/OSM_traces/{z}/{x}/{y}.mvt';
+    const START = {center: [35.72, 33.0], zoom: 13.2};
+    const mode = document.getElementById('mode');
+    const counts = {
+        left: {requested: 0, missing: 0},
+        right: {requested: 0, missing: 0}
+    };
+
+    // Stands in for the server change: a 418 becomes an empty body, the shape a 204 gives the source.
+    maplibregl.addProtocol('mapeak', async (params, abortController) => {
+        const url = params.url.replace('mapeak://', 'https://');
+        counts.right.requested++;
+        const response = await fetch(url, {signal: abortController.signal});
+        if (response.status === 418) {
+            counts.right.missing++;
+            if (mode.value === '404') {
+                throw new maplibregl.AJAXError(404, 'Not Found', url, new Blob());
+            }
+            return {data: new ArrayBuffer(0), cacheControl: response.headers.get('Cache-Control')};
+        }
+        if (!response.ok) {
+            throw new maplibregl.AJAXError(response.status, response.statusText, url, await response.blob());
+        }
+        return {data: await response.arrayBuffer(), cacheControl: response.headers.get('Cache-Control')};
+    });
+
+    const tracesLayers = [{
+        id: 'OSM-glow',
+        type: 'line',
+        source: 'traces',
+        'source-layer': 'OSM_traces',
+        paint: {
+            'line-color': 'yellow',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1, 10, 2.5],
+            'line-opacity': 0.6
+        }
+    }, {
+        id: 'OSM-trace',
+        type: 'line',
+        source: 'traces',
+        'source-layer': 'OSM_traces',
+        paint: {
+            'line-color': 'rgba(0, 128, 0, 1)',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.2, 10, 1],
+            'line-opacity': 0.6
+        }
+    }];
+
+    function createMap(container, source) {
+        const map = new maplibregl.Map({
+            container,
+            style: 'https://tiles.openfreemap.org/styles/bright',
+            ...START,
+            hash: container === 'left' ? 'map' : false,
+            attributionControl: {customAttribution: 'Traces: <a href="https://mapeak.com">Mapeak</a>, OpenStreetMap contributors'}
+        });
+        map.addControl(new maplibregl.NavigationControl());
+        map.on('load', () => {
+            map.addSource('traces', source);
+            for (const layer of tracesLayers) map.addLayer(layer);
+        });
+        return map;
+    }
+
+    const left = createMap('left', {type: 'vector', tiles: [TILES], minzoom: 7, maxzoom: 12});
+    const right = createMap('right', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'missing'});
+
+    // Mapeak's workaround, verbatim in spirit: ignore the 418s, log the rest.
+    left.on('error', (e) => {
+        if (e.error?.message?.includes('418')) {
+            counts.left.missing++;
+            return;
+        }
+        console.error(e.error);
+    });
+    left.on('dataloading', (e) => {
+        if (e.sourceId === 'traces' && e.tile) counts.left.requested++;
+    });
+
+    const stats = {left: document.getElementById('left-stat'), right: document.getElementById('right-stat')};
+    function updateStat(name, map) {
+        const c = counts[name];
+        stats[name].textContent = `zoom ${map.getZoom().toFixed(2)}  tiles requested ${c.requested}  missing ${c.missing}`;
+    }
+    for (const [name, map] of Object.entries({left, right})) {
+        map.on('render', () => updateStat(name, map));
+    }
+
+    // Keep both views together.
+    const sync = document.getElementById('sync');
+    let following = false;
+    function follow(from, to) {
+        from.on('move', () => {
+            if (!sync.checked || following) return;
+            following = true;
+            to.jumpTo({center: from.getCenter(), zoom: from.getZoom(), bearing: from.getBearing(), pitch: from.getPitch()});
+            following = false;
+        });
+    }
+    follow(left, right);
+    follow(right, left);
+
+    // Re-create the right source when the simulated server answer changes.
+    mode.addEventListener('change', () => {
+        for (const layer of tracesLayers) right.removeLayer(layer.id);
+        right.removeSource('traces');
+        counts.right = {requested: 0, missing: 0};
+        right.addSource('traces', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'missing'});
+        for (const layer of tracesLayers) right.addLayer(layer);
+    });
+
+    window.__demo = {left, right, counts};
+</script>
+</body>
+</html>
