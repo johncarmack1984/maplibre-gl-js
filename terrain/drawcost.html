@@ -1,0 +1,91 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" id="vp" content="width=device-width, initial-scale=1">
+<script>if (new URLSearchParams(location.search).get("desktop")) document.getElementById("vp").setAttribute("content", "width=980");</script>
+<title>webgl draw cost</title>
+<style>html,body{margin:0;height:100%;background:#000}canvas{display:block;width:100vw;height:100vh}#log{position:fixed;left:0;top:0;right:0;max-height:100vh;overflow:auto;color:#0f0;background:rgba(0,0,0,.7);font:12px/1.3 monospace;padding:6px;white-space:pre-wrap;word-break:break-all}</style>
+<canvas id="c"></canvas><div id="log"></div>
+<script>
+// Measures the cost of N WebGL draws per frame on this device, independent of maplibre. Each frame: clear, N draws of a
+// tiny quad (no fragment cost), then a 1px readPixels whose wait is the GPU-side frame cost (same "GPU wait" the terrain
+// harness reports). ?sweep=0,50,100,200,400,800 runs one phase per draw count; ?mode=min|sym: min = same state every draw
+// (drawElements only); sym = the state changes a maplibre symbol draw makes (2 texture binds, 10 uniform calls, one UBO
+// bufferSubData, VAO switch) before every drawElements. ?verts=N vertices per draw (default 6). ?secs= seconds per phase.
+const q = new URLSearchParams(location.search);
+const logEl = document.getElementById('log'); const log = s => { logEl.textContent += s + '\n'; console.log(s); };
+const canvas = document.getElementById('c');
+const dpr = +(q.get('dpr') || devicePixelRatio);
+canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
+const gl = canvas.getContext('webgl2', {antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance'});
+if (!gl) { log('no webgl2'); }
+const mode = q.get('mode') || 'sym';
+const verts = +(q.get('verts') || 6);
+const secs = +(q.get('secs') || 4);
+const sweep = (q.get('sweep') || '0,50,100,200,400,800').split(',').map(Number);
+const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))] : 0; };
+function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) log(gl.getShaderInfoLog(s)); return s; }
+const vsSrc = `#version 300 es
+layout(std140) uniform Block { mat4 u_m[4]; };
+in vec2 a_pos; in vec2 a_tex; uniform mat4 u_matrix; uniform vec2 u_off; uniform float u_a, u_b, u_c, u_d, u_e, u_f;
+out vec2 v_tex; out float v_k;
+void main() { v_tex = a_tex; v_k = u_a + u_b + u_c + u_d + u_e + u_f + u_m[0][0][0]; gl_Position = u_matrix * vec4(a_pos + u_off, 0.0, 1.0); }`;
+const fsSrc = `#version 300 es
+precision mediump float; in vec2 v_tex; in float v_k; uniform sampler2D u_t0; uniform sampler2D u_t1; out vec4 o;
+void main() { o = texture(u_t0, v_tex) * 0.5 + texture(u_t1, v_tex) * 0.5 + v_k * 0.0001; }`;
+const prog = gl.createProgram(); gl.attachShader(prog, shader(gl.VERTEX_SHADER, vsSrc)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, fsSrc)); gl.bindAttribLocation(prog, 0, 'a_pos'); gl.bindAttribLocation(prog, 1, 'a_tex'); gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) log(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const U = n => gl.getUniformLocation(prog, n);
+const uMatrix = U('u_matrix'), uOff = U('u_off'), uF = ['u_a', 'u_b', 'u_c', 'u_d', 'u_e', 'u_f'].map(U), uT0 = U('u_t0'), uT1 = U('u_t1');
+gl.uniform1i(uT0, 0); gl.uniform1i(uT1, 1);
+gl.uniformBlockBinding(prog, gl.getUniformBlockIndex(prog, 'Block'), 0);
+const ubo = gl.createBuffer(); gl.bindBuffer(gl.UNIFORM_BUFFER, ubo); gl.bufferData(gl.UNIFORM_BUFFER, 256, gl.DYNAMIC_DRAW); gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, ubo);
+const uboData = new Float32Array(64);
+// tiny quad: 2px wide at the canvas corner, so fragments are negligible. verts = 6 draws one quad; more verts repeat it.
+function makeVao(seed) {
+    const n = Math.max(6, verts); const pos = new Float32Array(n * 2), tex = new Float32Array(n * 2), idx = new Uint16Array(n);
+    const quad = [0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1];
+    for (let i = 0; i < n; i++) { pos[i * 2] = -1 + quad[(i % 6) * 2] * 0.002 + seed * 0.001; pos[i * 2 + 1] = -1 + quad[(i % 6) * 2 + 1] * 0.002; tex[i * 2] = quad[(i % 6) * 2]; tex[i * 2 + 1] = quad[(i % 6) * 2 + 1]; idx[i] = i; }
+    const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+    const pb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    const tb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tb); gl.bufferData(gl.ARRAY_BUFFER, tex, gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+    const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+    gl.bindVertexArray(null); return {vao, n};
+}
+const vaos = [makeVao(0), makeVao(1)];
+function makeTex(size, v) { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(size * size * 4).fill(v)); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); return t; }
+const texes = [makeTex(1024, 40), makeTex(1024, 80), makeTex(512, 120), makeTex(512, 160)];
+const m = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+gl.uniformMatrix4fv(uMatrix, false, m); gl.uniform2f(uOff, 0, 0); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texes[0]); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texes[1]); gl.bindVertexArray(vaos[0].vao);
+gl.viewport(0, 0, canvas.width, canvas.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.STENCIL_TEST);
+gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+const px = new Uint8Array(4);
+function frame(n) {
+    gl.clearColor(0.05, 0.05, 0.1, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    for (let i = 0; i < n; i++) {
+        if (mode === 'sym') {
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texes[i & 1]);
+            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texes[2 + (i & 1)]);
+            m[12] = i * 1e-6; gl.uniformMatrix4fv(uMatrix, false, m); gl.uniform2f(uOff, i * 1e-6, 0);
+            for (let k = 0; k < 6; k++) gl.uniform1f(uF[k], i + k);
+            uboData[0] = i; gl.bufferSubData(gl.UNIFORM_BUFFER, 0, uboData);
+            gl.bindVertexArray(vaos[i & 1].vao);
+        }
+        gl.drawElements(gl.TRIANGLES, vaos[i & 1].n, gl.UNSIGNED_SHORT, 0);
+    }
+    const t = performance.now(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return performance.now() - t;
+}
+const results = window.results = {device: navigator.userAgent, layout: `${innerWidth}x${innerHeight}@${dpr}`, canvas: `${canvas.width}x${canvas.height}`, mode, verts, phases: []};
+log(`draw cost probe: mode ${mode}, ${verts} verts/draw, canvas ${canvas.width}x${canvas.height} (${innerWidth}x${innerHeight} css @ dpr ${dpr}), sweep ${sweep.join(',')}, ${secs}s each`);
+log('renderer: ' + (() => { const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); })());
+async function phase(n) {
+    const deltas = [], stalls = []; let last = 0; const t0 = performance.now();
+    await new Promise(done => { function tick(t) { if (last) deltas.push(t - last); last = t; stalls.push(frame(n)); if (performance.now() - t0 < secs * 1000) requestAnimationFrame(tick); else done(); } requestAnimationFrame(tick); });
+    const s = {label: `draws-${n}`, draws: n, frames: deltas.length, p50: +pct(deltas, .5).toFixed(1), p90: +pct(deltas, .9).toFixed(1), max: +Math.max(0, ...deltas).toFixed(1), over33: deltas.filter(x => x > 33).length, gpuStall: {p50: +pct(stalls, .5).toFixed(1), p90: +pct(stalls, .9).toFixed(1), max: +pct(stalls, 1).toFixed(1)}};
+    results.phases.push(s); log(`${n} draws: frame p50 ${s.p50} p90 ${s.p90} max ${s.max} over33 ${s.over33} | GPU wait p50 ${s.gpuStall.p50} p90 ${s.gpuStall.p90} max ${s.gpuStall.max} ms`);
+}
+(async () => {
+    await new Promise(r => setTimeout(r, 500));
+    for (const n of sweep) await phase(n);
+    const ph = results.phases; if (ph.length >= 2) { const a = ph[0], b = ph[ph.length - 1]; results.usPerDraw = +((b.gpuStall.p50 - a.gpuStall.p50) / (b.draws - a.draws) * 1000).toFixed(1); log(`=> about ${results.usPerDraw} us of GPU wait per draw (${a.draws} -> ${b.draws} draws, p50)`); }
+    results.done = true; log('DONE'); document.title = 'DONE drawcost';
+})();
+</script>
