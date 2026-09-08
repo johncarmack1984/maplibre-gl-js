@@ -12,7 +12,7 @@ for (const s of Object.values(style.sources)) if (s.tiles) s.tiles = s.tiles.map
 const dem = Object.entries(style.sources).find(([, s]) => s.type === 'raster-dem')?.[0];
 if (dem && !q.has('noterrain')) style.terrain = {source: dem, exaggeration: 1};
 const center = (q.get('center') || '35.05,32.72').split(',').map(Number);
-const map = window.map = new Map({container: 'map', style, center, zoom: +(q.get('zoom') || 12.5), pitch: +(q.get('pitch') || 30), maxPitch: 85, attributionControl: false});
+const map = window.map = new Map({container: 'map', style, center, zoom: +(q.get('zoom') || 12.5), pitch: +(q.get('pitch') || 30), maxPitch: 85, attributionControl: false, pixelRatio: q.has('dpr') ? +q.get('dpr') : undefined});
 map.on('error', e => console.error(e.error || e));
 // ?markers=N drops N default DOM markers spread over the view (a stand-in for the app's clustered POI markers; they move with the map and check terrain occlusion like any Marker)
 const markers = +(q.get('markers') || 0);
