@@ -34,6 +34,10 @@ class StubMap extends Evented {
     style: any;
     painter: any;
 
+    get _camera(): {transform: IReadonlyTransform} {
+        return {transform: this.transform};
+    }
+
     constructor() {
         super();
         this.transform = new MercatorTransform();

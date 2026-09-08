@@ -55,6 +55,10 @@ export class MercatorProjection implements Projection {
         return SubdivisionGranularitySetting.noSubdivision;
     }
 
+    get isPlanar(): boolean {
+        return true;
+    }
+
     get useGlobeControls(): boolean {
         return false;
     }

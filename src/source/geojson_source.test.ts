@@ -14,8 +14,27 @@ import type {IReadonlyTransform} from '../geo/transform_interface.ts';
 import type {RequestManager} from '../util/request_manager.ts';
 import type {MapSourceDataEvent} from '../ui/events.ts';
 import type {GeoJSONSourceDiff, UpdateableGeoJSON} from './geojson_source_diff.ts';
+import {mercatorWorldCoordinateHelper} from '../geo/mercator_coordinate.ts';
+import type {WorldCoordinateHelper} from '../geo/transform_interface.ts';
+import type {Map} from '../ui/map.ts';
 
 const wrapDispatcher = getWrapDispatcher();
+
+function createTransformWithProjection(worldCoordinateHelper: WorldCoordinateHelper): MercatorTransform {
+    const transform = new MercatorTransform();
+    transform.setWorldCoordinateHelper(worldCoordinateHelper);
+    return transform;
+}
+
+function createMapWithProjection(worldCoordinateHelper: WorldCoordinateHelper): Map {
+    return {
+        _requestManager: {transformRequest: (url: string) => ({url})},
+        _camera: {transform: createTransformWithProjection(worldCoordinateHelper)},
+        style: {projection: {subdivisionGranularity: SubdivisionGranularitySetting.noSubdivision}},
+        getPixelRatio: () => 1,
+        showCollisionBoxes: false
+    } as any as Map;
+}
 
 const mockDispatcher = wrapDispatcher({
     sendAsync() { return Promise.resolve({}); }
@@ -242,6 +261,7 @@ describe('GeoJSONSource.loadTile', () => {
     const mapStub = {
         getPixelRatio() { return 1; },
         showCollisionBoxes: false,
+        _camera: {transform: new MercatorTransform()},
         style: {
             projection: {
                 get subdivisionGranularity() {
@@ -703,6 +723,7 @@ describe('GeoJSONSource.update', () => {
         const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
         source.map = {
             transform: {} as IReadonlyTransform,
+            _camera: {transform: new MercatorTransform()},
             getPixelRatio() { return 1; },
             getGlobalState: () => ({}),
             style: {
@@ -1129,6 +1150,7 @@ describe('GeoJSONSource.shoudReloadTile', () => {
 
     beforeEach(() => {
         source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = createMapWithProjection(mercatorWorldCoordinateHelper);
         tile = new Tile(new OverscaledTileID(0, 0, 0, 0, 0), source.tileSize);
         tile.state = 'loaded';
     });
