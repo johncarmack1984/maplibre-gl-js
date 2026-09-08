@@ -11,6 +11,7 @@ import type {SubdivisionGranularitySetting} from '../../render/subdivision_granu
 import type {Context} from '../../webgl/context.ts';
 import type {CanonicalTileID} from '../../tile/tile_id.ts';
 import type {Mesh} from '../../render/mesh.ts';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 export class GlobeProjection extends Evented implements Projection {
     properties: PossiblyEvaluated<ProjectionProps, ProjectionPropsPossiblyEvaluated>;
@@ -90,6 +91,10 @@ export class GlobeProjection extends Evented implements Projection {
 
     get isPlanar(): boolean {
         return false;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return mercatorTileMatrix;
     }
 
     get useGlobeControls(): boolean {
