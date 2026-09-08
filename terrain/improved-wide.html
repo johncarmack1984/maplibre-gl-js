@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=980, user-scalable=no"><title>mapeak terrain, main + #8368 + #8369 + single-stack style, desktop-site layout</title>
+<link rel="stylesheet" href="./dist-improved/maplibre-gl.css">
+<style>html,body{margin:0;height:100%;background:#000}#map{position:absolute;inset:0}#tag{position:absolute;left:8px;top:8px;padding:10px 18px;background:rgba(0,0,0,.6);color:#fff;font:30px -apple-system,system-ui,sans-serif;border-radius:8px;pointer-events:none}#tag b{color:#7fdc7f;margin-left:6px}#other a{color:#9cf;text-decoration:none}#other{position:absolute;right:8px;top:8px;padding:10px 18px;background:rgba(0,0,0,.6);color:#9cf;font:30px -apple-system,system-ui,sans-serif;border-radius:8px;text-decoration:none;display:flex;flex-direction:column;gap:12px;text-align:right}</style>
+</head><body><div id="map"></div><div id="tag">main + #8368 + #8369 + single-stack style, desktop-site layout<b id="fps"></b></div><div id="other"><a href="./main-wide.html">main build</a><a href="./improved.html">phone layout</a></div>
+<script type="module">
+import {Map, setRTLTextPlugin} from './dist-improved/maplibre-gl.mjs';
+const q = new URLSearchParams(location.search);
+setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.js', true);
+const style = await (await fetch(q.get('style') || './mapeak-style-single-stack.json')).json();
+for (const s of Object.values(style.sources)) if (s.tiles) s.tiles = s.tiles.map(u => u.replace(/^slice:\/\//, 'https://'));
+const dem = Object.entries(style.sources).find(([, s]) => s.type === 'raster-dem')?.[0];
+if (dem && !q.has('noterrain')) style.terrain = {source: dem, exaggeration: 1};
+const pixelRatio = Math.min(devicePixelRatio, screen.width * devicePixelRatio / 980);
+const center = (q.get('center') || '35.05,32.72').split(',').map(Number);
+const map = window.map = new Map({container: 'map', style, center, zoom: +(q.get('zoom') || 12.5), pitch: +(q.get('pitch') || 30), maxPitch: 85, attributionControl: false, pixelRatio});
+map.on('error', e => console.error(e.error || e));
+// frames per second while the map moves (requestAnimationFrame cadence), blank at rest
+const fps = document.getElementById('fps'); let frames = 0, t0 = performance.now(), moving = false;
+map.on('movestart', () => { moving = true; }); map.on('moveend', () => { moving = false; fps.textContent = ''; });
+(function tick(t) { frames++; if (t - t0 >= 1000) { if (moving) fps.textContent = frames + ' fps'; frames = 0; t0 = t; } requestAnimationFrame(tick); })(performance.now());
+</script></body></html>
