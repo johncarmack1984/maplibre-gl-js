@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>mapeak terrain memory, 6.9.0 release</title>
+<link rel="stylesheet" href="./dist-6.9.0/maplibre-gl.css">
+<style>html,body{margin:0;height:100%;background:#000}#map{position:absolute;inset:0}#tag{position:absolute;left:8px;top:8px;padding:5px 8px;background:rgba(0,0,0,.65);color:#fff;font:12px/1.35 -apple-system,system-ui,sans-serif;border-radius:4px;pointer-events:none;white-space:pre}#tag b{color:#7fdc7f}#tag i{color:#ffb86b;font-style:normal}#other{position:absolute;right:8px;top:8px;padding:4px 8px;background:rgba(0,0,0,.6);color:#9cf;font:12px -apple-system,system-ui,sans-serif;border-radius:4px;text-decoration:none}</style>
+</head><body><div id="map"></div><div id="tag">6.9.0 release</div><a id="other" href="./pooltrim.html">pool-trim build</a>
+<script src="./gl-census.js"></script>
+<script type="module">
+import {Map, Marker} from './dist-6.9.0/maplibre-gl.mjs';
+const q = new URLSearchParams(location.search);
+const style = await (await fetch(q.has('single') ? './mapeak-style-single-stack.json' : './mapeak-style.json')).json();
+for (const s of Object.values(style.sources)) if (s.tiles) s.tiles = s.tiles.map(u => u.replace(/^slice:\/\//, 'https://'));
+// the app adds its own raster-dem source named "terrain" and sets exaggeration 2 once the pitch passes 10 degrees
+const demSpec = {type: 'raster-dem', tiles: ['https://mapeak.com/vector/data/raster-dem/{z}/{x}/{y}.webp'], minzoom: 7, maxzoom: 11, tileSize: 512, encoding: 'terrarium'};
+const applogic = q.has('applogic');
+if (!applogic) { style.sources.terrain = demSpec; style.terrain = {source: 'terrain', exaggeration: +(q.get('exag') || 2)}; }
+const center = (q.get('center') || '35.05,32.72').split(',').map(Number);
+const map = window.map = new Map({container: 'map', style, center, zoom: +(q.get('zoom') || 13), pitch: applogic ? 0 : +(q.get('pitch') || 45), maxPitch: 85, attributionControl: false, pixelRatio: q.has('dpr') ? +q.get('dpr') : undefined});
+map.on('error', e => console.error(e.error || e));
+if (applogic) {
+    // mapeak's MainMapComponent.pitchChanged: terrain on above 10 degrees of pitch, off below
+    let isTerrainOn = false;
+    map.on('pitch', () => {
+        const pitch = map.getPitch();
+        if (pitch <= 10 && isTerrainOn) { isTerrainOn = false; map.setTerrain(null); }
+        else if (pitch > 10 && !isTerrainOn) { isTerrainOn = true; if (!map.getSource('terrain')) map.addSource('terrain', demSpec); map.setTerrain({source: 'terrain', exaggeration: 2}); }
+    });
+}
+const markers = +(q.get('markers') || 0);
+if (markers) map.once('load', () => {
+    const w = map.getContainer().clientWidth, h = map.getContainer().clientHeight;
+    const cols = Math.ceil(Math.sqrt(markers * w / h)), rows = Math.ceil(markers / cols);
+    for (let i = 0; i < markers; i++) { const c = i % cols, r = Math.floor(i / cols); new Marker().setLngLat(map.unproject([w * (c + 0.5) / cols, h * (0.12 + 0.86 * (r + 0.5) / rows)])).addTo(map); }
+});
+// HUD: estimated GPU texture memory from the census, drapes held by tiles + pooled, gestures, WebGL context losses.
+// The last line is written to localStorage once a second; when a run dies (white screen), the next load shows where it stood.
+const KEY = 'terrain-mem-690';
+let pans = 0, lost = 0, restored = 0;
+map.on('moveend', e => { if (e.originalEvent) pans++; });
+map.on('webglcontextlost', () => lost++);
+map.on('webglcontextrestored', () => restored++);
+const tag = document.getElementById('tag');
+let prev = null; try { prev = JSON.parse(localStorage.getItem(KEY)); } catch {}
+if (prev && !prev.clean) setTimeout(() => { prev = null; }, 20000);
+function drapes() { const t = map.terrain; let held = 0; if (t) for (const x of Object.values(t.tileManager._tiles || {})) held += (x.rttObjects || []).filter(Boolean).length; return {held, pooled: map.painter._rttObjectRecyclePool ? map.painter._rttObjectRecyclePool.length : 0}; }
+setInterval(() => {
+    const c = glCensus(), d = drapes();
+    const line = `textures ${c.texMB} MB (${c.texN})  drapes ${d.held}+${d.pooled} pooled  pans ${pans}  ctx lost ${lost}/${restored}`;
+    tag.innerHTML = `6.9.0 release${map.getTerrain() ? '' : ' (2D)'}\n<b>${line}</b>` + (prev && !prev.clean ? `\n<i>previous run ended at: ${prev.line}</i>` : '');
+    try { localStorage.setItem(KEY, JSON.stringify({line, clean: false, at: Date.now()})); } catch {}
+}, 1000);
+addEventListener('pagehide', () => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) { s.clean = true; localStorage.setItem(KEY, JSON.stringify(s)); } } catch {} });
+</script></body></html>
