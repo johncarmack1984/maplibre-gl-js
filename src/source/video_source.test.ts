@@ -7,13 +7,17 @@ import {Tile} from '../tile/tile.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {Evented} from '../util/evented.ts';
 
-import type {IReadonlyTransform} from '../geo/transform_interface.ts';
+import type {IReadonlyTransform, WorldCoordinateHelper} from '../geo/transform_interface.ts';
 import type {Coordinates} from './image_source.ts';
 
 class StubMap extends Evented {
     transform: IReadonlyTransform;
     style: any;
     painter: any;
+
+    get _worldCoordinateHelper(): WorldCoordinateHelper {
+        return this.transform.worldCoordinateHelper;
+    }
 
     constructor() {
         super();
@@ -37,6 +41,7 @@ function createSource(options) {
     const source = new VideoSource('id', options, getMockDispatcher(), options.eventedParent);
 
     source.video = c;
+    source.map = new StubMap() as any;
     return source;
 }
 
