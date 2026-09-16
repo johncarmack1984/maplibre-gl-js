@@ -10,6 +10,7 @@ import type {FilterSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {GeoJSONFeature, MapGeoJSONFeature} from '../util/vectortile_to_geojson.ts';
 import type {QueryResults, QueryResultsItem} from '../data/feature_index.ts';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
+import type {WorldCoordinateHelper} from '../geo/transform_interface.ts';
 
 type RenderedFeatureLayer = {
     wrappedTileID: string;
@@ -74,6 +75,10 @@ export type QuerySourceFeatureOptions = {
  */
 export type QuerySourceFeatureOptionsStrict = QuerySourceFeatureOptions & {
     globalState?: Record<string, any>;
+    /**
+     * The map projection's world-to-lng/lat mapping for the returned geometry.
+     */
+    worldCoordinateHelper: WorldCoordinateHelper;
 };
 
 export type QueryRenderedFeaturesResults = {
@@ -180,7 +185,8 @@ export function queryRenderedSymbols(styleLayers: {[_: string]: StyleLayer},
             queryData.sourceLayerIndex,
             {
                 filterSpec: params.filter,
-                globalState: params.globalState
+                globalState: params.globalState,
+                worldCoordinateHelper: collisionIndex.transform.worldCoordinateHelper
             },
             params.layers,
             params.availableImages,
@@ -216,7 +222,7 @@ export function queryRenderedSymbols(styleLayers: {[_: string]: StyleLayer},
     return convertFeaturesToMapFeaturesMultiple(result, styleLayers, tileManagers);
 }
 
-export function querySourceFeatures(tileManager: TileManager, params: QuerySourceFeatureOptionsStrict | undefined): GeoJSONFeature[] {
+export function querySourceFeatures(tileManager: TileManager, params: QuerySourceFeatureOptionsStrict): GeoJSONFeature[] {
     const tiles = tileManager.getRenderableIds().map((id) => {
         return tileManager.getTileByID(id);
     });
