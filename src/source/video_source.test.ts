@@ -15,6 +15,10 @@ class StubMap extends Evented {
     style: any;
     painter: any;
 
+    get _camera(): {transform: IReadonlyTransform} {
+        return {transform: this.transform};
+    }
+
     constructor() {
         super();
         this.transform = new MercatorTransform();
@@ -37,6 +41,7 @@ function createSource(options) {
     const source = new VideoSource('id', options, getMockDispatcher(), options.eventedParent);
 
     source.video = c;
+    source.map = new StubMap() as any;
     return source;
 }
 
