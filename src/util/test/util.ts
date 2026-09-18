@@ -323,7 +323,7 @@ export function createDEM(heightFn: (x: number, y: number) => number, dim: numbe
 }
 
 export function createDEMTerrain(tileIDs: OverscaledTileID[], dem: DEMData | null, exaggeration: number = 1): Terrain {
-    const painter = {} as Painter;
+    const painter = {transform: new MercatorTransform()} as unknown as Painter;
     const tileManager = {_source: {tileSize: 512, minzoom: 0, maxzoom: 22}} as TileManager;
     const terrain = new Terrain(painter, tileManager, {exaggeration} as TerrainSpecification);
     terrain.tileManager.getRenderableTiles = () => tileIDs.map(tileID => ({tileID}) as Tile);
