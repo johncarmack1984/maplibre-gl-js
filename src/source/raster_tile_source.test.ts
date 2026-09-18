@@ -3,6 +3,7 @@ import {mercatorWorldCoordinateHelper} from '../geo/mercator_coordinate.ts';
 import {RasterTileSource} from './raster_tile_source.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {RequestManager} from '../util/request_manager.ts';
+import {mercatorTileMatrix} from '../geo/projection/tile_matrix.ts';
 import {fakeServer, type FakeServer} from 'nise';
 import {sleep, stubAjaxGetImage, waitForEvent} from '../util/test/util.ts';
 import {ImageRequest} from '../util/image_request.ts';
@@ -18,7 +19,8 @@ function createSource(options, transformCallback?) {
         _getMapId: () => 1,
         _requestManager: new RequestManager(transformCallback),
         getPixelRatio() { return 1; },
-        _worldCoordinateHelper: mercatorWorldCoordinateHelper
+        _worldCoordinateHelper: mercatorWorldCoordinateHelper,
+        style: {projection: {tileMatrix: mercatorTileMatrix}}
     } as any);
 
     source.on('error', () => { }); // to prevent console log of errors

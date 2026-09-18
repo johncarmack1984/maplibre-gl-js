@@ -5,6 +5,7 @@ import {PosArray, TriangleIndexArray} from '../../data/array_types.g.ts';
 import {SegmentVector} from '../../data/segment.ts';
 import posAttributes from '../../data/pos_attributes.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
+import {mercatorTileMatrix, type TileMatrix} from './tile_matrix.ts';
 
 import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {Context} from '../../webgl/context.ts';
@@ -16,15 +17,18 @@ export const MercatorShaderVariantKey = 'mercator';
 
 /**
  * The flat projection. Mercator by default; the factory also builds one under the name of a CRS registered
- * with `addProjection`, since such tiles already sit in their own quad grid and render exactly like mercator
- * tiles do, with only the transform's lng/lat mapping differing. Every planar projection shares one shader variant.
+ * with `addProjection`, carrying that CRS's tile matrix, since such tiles already sit in their own quad grid and
+ * render exactly like mercator tiles do, with only the transform's lng/lat mapping differing. Every planar projection
+ * shares one shader variant.
  */
 export class MercatorProjection implements Projection {
     private _cachedMesh: Mesh = null;
     private readonly _name: string;
+    private readonly _tileMatrix: TileMatrix;
 
-    constructor(name: string = 'mercator') {
+    constructor(name: string = 'mercator', tileMatrix: TileMatrix = mercatorTileMatrix) {
         this._name = name;
+        this._tileMatrix = tileMatrix;
     }
 
     get name(): ProjectionSpecification['type'] {
@@ -54,6 +58,10 @@ export class MercatorProjection implements Projection {
 
     get subdivisionGranularity(): SubdivisionGranularitySetting {
         return SubdivisionGranularitySetting.noSubdivision;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return this._tileMatrix;
     }
 
     get useGlobeControls(): boolean {
