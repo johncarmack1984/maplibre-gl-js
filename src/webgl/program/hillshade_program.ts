@@ -124,7 +124,14 @@ const hillshadeUniformPrepareValues = (tileID: OverscaledTileID, dem: DEMData): 
     };
 };
 
-function getTileLatRange(painter: Painter, tileID: OverscaledTileID) {
+/**
+ * The latitudes of the tile's top and bottom edges, which the hillshade shader uses to correct the mercator
+ * scale distortion of slopes (it scales by `cos(lat)`). Only the wrapping, cylindrical mercator plane stretches
+ * with latitude; any other plane is rendered in its own units and gets `[0, 0]`: `cos(0)` is 1 and the shader
+ * applies no correction.
+ */
+function getTileLatRange(painter: Painter, tileID: OverscaledTileID): [number, number] {
+    if (!painter.transform.worldCoordinateHelper.wraps) return [0, 0];
     // for scaling the magnitude of a points slope by its latitude
     const tilesAtZoom = Math.pow(2, tileID.canonical.z);
     const y = tileID.canonical.y;
