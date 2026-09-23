@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Take the terrain's elevation as soon as it loads under the map center during a gesture that switched terrain on, instead of ending the gesture kilometers away at another zoom ([#8548](https://github.com/maplibre/maplibre-gl-js/pull/8548))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
