@@ -351,6 +351,11 @@ export class Camera extends Evented<MapEventType> {
     elevationFreeze: boolean;
     /**
      * @internal
+     * Whether the center elevation a hold carries came from loaded DEM data, see {@link Camera.holdElevation}.
+     */
+    _heldElevationFromDem: boolean = true;
+    /**
+     * @internal
      * Used to track accumulated changes during continuous interaction
      */
     _requestedCameraState?: ITransform;
@@ -888,6 +893,7 @@ export class Camera extends Evented<MapEventType> {
         this._elevationStart = tr.elevation;
         this._elevationTarget = this.terrain.getElevationForLngLat(center, tr);
         this.elevationFreeze = true;
+        this._heldElevationFromDem = true;
     }
 
     /**
@@ -915,10 +921,52 @@ export class Camera extends Evented<MapEventType> {
     }
 
     _finalizeElevation(): void {
+        this.releaseElevation(this.transform);
+    }
+
+    /**
+     * @internal
+     * Holds the center elevation for a gesture over terrain: the gesture's frames leave it alone and its end puts
+     * the center back onto the terrain with the camera where it is. An elevation no DEM produced, because the
+     * terrain was switched on mid-gesture or its tiles have not landed, is held only until one does.
+     * @param tr - the transform the gesture edits
+     */
+    holdElevation(tr: ITransform): void {
+        this.elevationFreeze = true;
+        this._heldElevationFromDem = !this.terrain || this.terrain.getLoadedElevationForLngLat(tr.center, tr) !== undefined;
+    }
+
+    /**
+     * @internal
+     * Ends a hold on the center elevation: an elevation no DEM produced takes the one that has landed, then the
+     * center goes back onto the terrain with the camera where it is.
+     * @param tr - the transform the gesture or animation edits
+     */
+    releaseElevation(tr: ITransform): void {
+        this._takeLandedElevation(tr);
         this.elevationFreeze = false;
         if (this.getCenterClampedToGround()) {
-            this.transform.recalculateZoomAndCenter(this.terrain);
+            tr.recalculateZoomAndCenter(this.terrain);
         }
+    }
+
+    /**
+     * @internal
+     * While a hold carries a center elevation no DEM produced, the first elevation that lands under the center
+     * replaces it on the transform being edited, lifting the camera onto the terrain as the terrain's arrival
+     * does at rest.
+     * @param tr - the transform the gesture edits
+     */
+    _takeLandedElevation(tr: ITransform): void {
+        if (!this.terrain || !this.elevationFreeze || this._heldElevationFromDem || !this.getCenterClampedToGround()) {
+            return;
+        }
+        const elevation = this.terrain.getLoadedElevationForLngLat(tr.center, tr);
+        if (elevation === undefined) {
+            return;
+        }
+        tr.setElevation(elevation);
+        this._heldElevationFromDem = true;
     }
 
     /**
@@ -995,6 +1043,7 @@ export class Camera extends Evented<MapEventType> {
      * @param tr - the requested camera end state
      */
     applyUpdatedTransform(tr: ITransform): void {
+        this._takeLandedElevation(tr);
         this._keepCameraAboveTerrain(tr);
         if (!this.transformCameraUpdate) {
             if (tr !== this.transform) this.transform.apply(tr, false);

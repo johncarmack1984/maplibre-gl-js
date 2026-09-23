@@ -391,6 +391,30 @@ describe('Terrain', () => {
         expect(terrain.getElevationForLngLatZoom(new LngLat(-90, 40), 1.5)).toBeCloseTo(300, 6);
     });
 
+    test('getLoadedElevationForLngLat is undefined while no tile with DEM data covers the location', () => {
+        const tileID = new OverscaledTileID(1, 0, 1, 0, 0);
+        const terrain = createDEMTerrain([tileID], createDEM(() => 300));
+        terrain.tileManager.getSourceTile = () => undefined;
+        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 85, renderWorldCopies: true});
+        transform.resize(200, 200);
+        transform.setZoom(1);
+        transform.setCenter(new LngLat(-90, 40));
+
+        expect(terrain.getLoadedElevationForLngLat(new LngLat(-90, 40), transform)).toBeUndefined();
+        expect(terrain.getElevationForLngLat(new LngLat(-90, 40), transform)).toBe(0);
+    });
+
+    test('getLoadedElevationForLngLat is the elevation where a tile with DEM data covers the location', () => {
+        const tileID = new OverscaledTileID(1, 0, 1, 0, 0);
+        const terrain = createDEMTerrain([tileID], createDEM(() => 300));
+        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 85, renderWorldCopies: true});
+        transform.resize(200, 200);
+        transform.setZoom(1);
+        transform.setCenter(new LngLat(-90, 40));
+
+        expect(terrain.getLoadedElevationForLngLat(new LngLat(-90, 40), transform)).toBeCloseTo(300, 6);
+    });
+
     test('getMinTileElevationForLngLatZoom with lng less than -180 wraps correctly', () => {
         const terrain = new Terrain(null, {_source: {tileSize: 512}} as any, {} as any);
 

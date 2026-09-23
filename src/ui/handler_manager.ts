@@ -695,7 +695,7 @@ export class HandlerManager {
 
         if (!this._terrainGesture.inFlight) {
             this._terrainGesture.inFlight = true;
-            this._camera.elevationFreeze = true;
+            this._camera.holdElevation(tr);
             cameraHelper.handleMapControlsPan(deltasForHelper, tr, preZoomAroundLoc);
             return;
         }
@@ -762,12 +762,9 @@ export class HandlerManager {
         const stillMoving = isMoving(this._eventsInProgress);
         const finishedMoving = (wasMoving || nowMoving) && !stillMoving;
         if (finishedMoving && this._terrainGesture.inFlight) {
-            this._camera.elevationFreeze = false;
             this._terrainGesture = {inFlight: false, anchorElevation: null};
             const tr = this._camera.getTransformForUpdate();
-            if (this._map.getCenterClampedToGround()) {
-                tr.recalculateZoomAndCenter(this._map.terrain);
-            }
+            this._camera.releaseElevation(tr);
             this._camera.applyUpdatedTransform(tr);
         }
         if (allowEndAnimation && finishedMoving) {

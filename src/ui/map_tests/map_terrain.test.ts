@@ -313,6 +313,37 @@ describe('Terrain changing under and around a gesture', () => {
         map.getSource('dem').fire(new MapSourceDataEvent('data', {tile: {tileID}, coord: tileID}));
     }
 
+    test('a pitch drag that switches terrain on takes the DEM elevation once it lands, and releases where it is', async () => {
+        const map = createMap({interactive: true, zoom: 17, pitch: 0});
+        await map.once('load');
+        map.addSource('dem', {type: 'raster-dem', tiles: ['http://example.com/{z}/{x}/{y}.png']});
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 100, clientY: 150});
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 100, clientY: 130});
+        map._renderTaskQueue.run();
+        map.setTerrain({source: 'dem'});
+        const loadedElevation = vi.spyOn(map.terrain, 'getLoadedElevationForLngLat').mockReturnValue(undefined);
+        const elevation = vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);
+        vi.spyOn(map.terrain, 'getElevationForLngLatZoom').mockReturnValue(0);
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 100, clientY: 110});
+        map._renderTaskQueue.run();
+        expect(map.getCameraTargetElevation()).toBe(0);
+
+        loadedElevation.mockReturnValue(1000);
+        elevation.mockReturnValue(1000);
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 100, clientY: 90});
+        map._renderTaskQueue.run();
+        expect(map.getCameraTargetElevation()).toBe(1000);
+
+        simulate.mouseup(map.getCanvas(), {buttons: 0, button: 2, clientX: 100, clientY: 90});
+        map._renderTaskQueue.run();
+        expect(map.getCameraTargetElevation()).toBe(1000);
+        expect(map.getPitch()).toBe(30);
+        expect(map.getZoom()).toBeCloseTo(17, 6);
+        expect(map.getCenter().lng).toBeCloseTo(0, 6);
+        expect(map.getCenter().lat).toBeCloseTo(0, 6);
+    });
+
     test('a rotate drag holds the center elevation until it ends and turns the same bearing per pixel while the terrain under the center rises', async () => {
         const map = await createMapOverTerrain(60);
         const terrainElevation = vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);
