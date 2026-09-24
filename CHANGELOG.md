@@ -1,12 +1,14 @@
 ## main
 ### ✨ Features and improvements
-- Take the terrain's elevation as soon as it loads under the map center during a gesture that switched terrain on, instead of ending the gesture kilometers away at another zoom ([#8548](https://github.com/maplibre/maplibre-gl-js/pull/8548))
+- Improve rendering performance by uploading each tile's projection data once per frame instead of before every draw call ([#8545](https://github.com/maplibre/maplibre-gl-js/pull/8545)) (by [@birkskyum](https://github.com/birkskyum))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
+- Fix zooming and panning with the pointer above the horizon moving the map in the opposite direction ([#8544](https://github.com/maplibre/maplibre-gl-js/pull/8544)) (by [@birkskyum](https://github.com/birkskyum))
 - Fix the camera jumping when a drag over terrain ends at a pitch above 84° ([#8541](https://github.com/maplibre/maplibre-gl-js/pull/8541)) (by [@birkskyum](https://github.com/birkskyum))
 - Ease the center elevation over terrain during `easeTo` and `flyTo` instead of holding it and jumping when the animation ends ([#8543](https://github.com/maplibre/maplibre-gl-js/pull/8543))
 - Keep the camera above the terrain during zoom gestures, where it could dive into a mountain and then jump out ([#8539](https://github.com/maplibre/maplibre-gl-js/issues/8539))
+- Take the terrain's elevation as soon as it loads under the map center during a gesture that switched terrain on, instead of ending the gesture kilometers away at another zoom ([#8548](https://github.com/maplibre/maplibre-gl-js/pull/8548))
 - _...Add new stuff here..._
 
 ## 6.11.1
