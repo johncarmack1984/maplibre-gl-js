@@ -12,6 +12,7 @@ import type {Context} from '../../webgl/context.ts';
 import type {CanonicalTileID} from '../../tile/tile_id.ts';
 import type {Projection, TileMeshUsage} from './projection.ts';
 import type {WorldCoordinateHelper} from '../transform_interface.ts';
+import type {TileMatrix} from './tile_matrix.ts';
 
 export const MercatorShaderDefine = '#define PROJECTION_MERCATOR';
 export const MercatorShaderVariantKey = 'mercator';
@@ -19,8 +20,8 @@ export const MercatorShaderVariantKey = 'mercator';
 /**
  * The flat projection. Mercator by default; the factory also builds one for a CRS registered with `addProjection`,
  * since such tiles already sit in their own quad grid and render exactly like mercator tiles do. The projection
- * takes its name from the lng/lat mapping of that grid, which the transform built alongside it runs on too.
- * Every planar projection shares one shader variant.
+ * takes its name and tile matrix from the lng/lat mapping of that grid, which the transform built alongside it
+ * runs on too. Every planar projection shares one shader variant.
  */
 export class MercatorProjection implements Projection {
     private _cachedMesh: Mesh = null;
@@ -64,6 +65,10 @@ export class MercatorProjection implements Projection {
 
     get subdivisionGranularity(): SubdivisionGranularitySetting {
         return SubdivisionGranularitySetting.noSubdivision;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return this._worldCoordinateHelper.tileMatrix;
     }
 
     get useGlobeControls(): boolean {

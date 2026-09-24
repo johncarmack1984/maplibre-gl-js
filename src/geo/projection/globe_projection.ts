@@ -13,6 +13,7 @@ import type {Context} from '../../webgl/context.ts';
 import type {CanonicalTileID} from '../../tile/tile_id.ts';
 import type {Mesh} from '../../render/mesh.ts';
 import type {WorldCoordinateHelper} from '../transform_interface.ts';
+import type {TileMatrix} from './tile_matrix.ts';
 
 export class GlobeProjection extends Evented implements Projection {
     properties: PossiblyEvaluated<ProjectionProps, ProjectionPropsPossiblyEvaluated>;
@@ -92,6 +93,10 @@ export class GlobeProjection extends Evented implements Projection {
 
     get subdivisionGranularity(): SubdivisionGranularitySetting {
         return this.currentProjection.subdivisionGranularity;
+    }
+
+    get tileMatrix(): TileMatrix {
+        return this.currentProjection.tileMatrix;
     }
 
     get useGlobeControls(): boolean {
