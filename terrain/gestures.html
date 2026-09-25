@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Terrain gestures: 6.11.2 vs #8547 + #8548</title>
+<link rel="stylesheet" href="./dist-6.11.2/maplibre-gl.css">
+<style>
+    html, body, #map { margin: 0; height: 100%; background: #000; }
+    #hud { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 2; font: 12px/1.45 ui-monospace, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, 0.66); padding: 6px 8px; border-radius: 6px; pointer-events: none; white-space: pre; }
+    #hud b { color: #ff8080; }
+    #bar { position: absolute; bottom: 28px; left: 8px; right: 8px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+    #bar a, #bar button { font: 13px system-ui, sans-serif; padding: 8px 10px; border-radius: 6px; border: 0; background: #fff; color: #000; text-decoration: none; }
+    #bar .on { background: #9ad79a; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="hud"></div>
+<div id="bar"></div>
+<script type="module">
+// One map, one build at a time, for testing gestures by hand on a phone.
+// ?build=release (6.11.2) | pr (6.11.2's main plus #8547 and #8548)
+// ?style=terrain (the 3d-terrain example's sources) | mapeak (Mapeak's style, DEM from mapeak.com)
+// ?terrain=auto (on at exaggeration 2 once the pitch passes 10 degrees, off at 10 or below, like Israel Hiking Map) | on
+// ?slow=<ms> answers every DEM tile that much later, like a slow network
+const q = new URLSearchParams(location.search);
+const build = q.get('build') === 'release' ? 'release' : 'pr';
+const styleName = q.get('style') === 'mapeak' ? 'mapeak' : 'terrain';
+const terrainMode = q.get('terrain') === 'on' ? 'on' : 'auto';
+const slow = +(q.get('slow') || 0);
+const lib = await import(build === 'release' ? './dist-6.11.2/maplibre-gl.mjs' : './dist-8547-8548/maplibre-gl.mjs');
+
+if (slow) {
+    lib.addProtocol('slowdem', async (params, abortController) => {
+        await new Promise(resolve => setTimeout(resolve, slow));
+        const response = await fetch(params.url.replace('slowdem://', 'https://'), {signal: abortController.signal});
+        if (!response.ok) throw new Error(`${response.status}`);
+        return {data: await response.arrayBuffer()};
+    });
+}
+const demUrl = url => slow ? url.replace('https://', 'slowdem://') : url;
+
+let style, demSource;
+if (styleName === 'mapeak') {
+    style = await (await fetch('./mapeak-style.json')).json();
+    demSource = 'DEM';
+    style.sources.DEM.tiles = style.sources.DEM.tiles.map(demUrl);
+} else {
+    demSource = 'dem';
+    style = {
+        version: 8,
+        sources: {
+            osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '&copy; OpenStreetMap contributors'},
+            dem: {type: 'raster-dem', tiles: [demUrl('https://tiles.mapterhorn.com/{z}/{x}/{y}.webp')], encoding: 'terrarium', tileSize: 512, maxzoom: 16, attribution: '&copy; Mapterhorn'},
+            hills: {type: 'raster-dem', tiles: ['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'], encoding: 'terrarium', tileSize: 512, maxzoom: 16}
+        },
+        layers: [
+            {id: 'osm', type: 'raster', source: 'osm'},
+            {id: 'hills', type: 'hillshade', source: 'hills', paint: {'hillshade-shadow-color': '#473B24'}}
+        ]
+    };
+}
+
+const views = {
+    pitch: {center: [11.3985, 47.2865], zoom: 17, pitch: 0, bearing: 0},    // the slope above Innsbruck, flat camera: pitch it with two fingers
+    zoom: {center: [11.39085, 47.27574], zoom: 12, pitch: 70, bearing: 0}   // the 3d-terrain example's view: pinch or scroll into the Nordkette
+};
+const start = views[q.get('view')] || views.pitch;
+const map = new lib.Map({container: 'map', style, ...start, maxPitch: 85, attributionControl: {compact: true}});
+const terrainOptions = {source: demSource, exaggeration: terrainMode === 'auto' ? 2 : 1};
+map.on('load', () => { if (terrainMode === 'on') map.setTerrain(terrainOptions); });
+map.on('pitch', () => {
+    if (terrainMode !== 'auto') return;
+    const on = map.getPitch() > 10;
+    if (on && !map.getTerrain()) map.setTerrain(terrainOptions);
+    if (!on && map.getTerrain()) map.setTerrain(null);
+});
+
+const link = (label, params, on) => `<a class="${on ? 'on' : ''}" href="?${new URLSearchParams({build, style: styleName, terrain: terrainMode, slow: String(slow), view: q.get('view') || 'pitch', ...params})}">${label}</a>`;
+document.getElementById('bar').innerHTML = [
+    link('6.11.2', {build: 'release'}, build === 'release'),
+    link('#8547 + #8548', {build: 'pr'}, build === 'pr'),
+    link('pitch view', {view: 'pitch'}, (q.get('view') || 'pitch') === 'pitch'),
+    link('zoom view', {view: 'zoom'}, q.get('view') === 'zoom'),
+    link('terrain at 10°', {terrain: 'auto'}, terrainMode === 'auto'),
+    link('terrain on', {terrain: 'on'}, terrainMode === 'on'),
+    link('slow DEM', {slow: slow ? '0' : '2000'}, slow > 0),
+    link('mapeak style', {style: styleName === 'mapeak' ? 'terrain' : 'mapeak'}, styleName === 'mapeak')
+].join('');
+
+const hud = document.getElementById('hud');
+const label = build === 'release' ? '6.11.2' : '#8547 + #8548';
+setInterval(() => {
+    const transform = map._camera.transform;   // internal, a test page only: the camera's position has no public getter
+    const cameraAltitude = transform.getCameraAltitude();
+    const ground = map.getTerrain() ? map.queryTerrainElevation(transform.getCameraLngLat()) ?? 0 : 0;
+    const inside = cameraAltitude < ground;
+    hud.innerHTML = `${label}${slow ? `, DEM +${slow} ms` : ''}, terrain ${map.getTerrain() ? `on x${map.getTerrain().exaggeration ?? 1}` : 'off'}\n` +
+        `zoom ${map.getZoom().toFixed(2)}  pitch ${map.getPitch().toFixed(1)}  center elevation ${map.getCenterElevation().toFixed(0)} m\n` +
+        `camera ${cameraAltitude.toFixed(0)} m, ground under it ${ground.toFixed(0)} m${inside ? `  <b>INSIDE by ${(ground - cameraAltitude).toFixed(0)} m</b>` : ''}`;
+}, 100);
+window.map = map;
+</script>
+</body>
+</html>

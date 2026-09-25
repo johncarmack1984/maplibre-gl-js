@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Center elevation reads 0 while the DEM loads</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css">
+<style>
+    html, body, #map { margin: 0; height: 100%; }
+    #panel { position: absolute; top: 10px; left: 10px; z-index: 1; background: rgba(255, 255, 255, 0.92); font: 13px/1.5 monospace; padding: 8px 10px; border-radius: 4px; }
+    #readout, #log { white-space: pre; }
+    #log { margin-top: 6px; }
+    button { font: 13px sans-serif; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+    <div id="readout"></div>
+    <button id="jump" disabled>jumpTo Mont Blanc</button>
+    <div id="log"></div>
+</div>
+<script type="module">
+    import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-dev.mjs';
+
+    // Mapterhorn terrain, every DEM tile answered 3 s late, like a slow network.
+    maplibregl.addProtocol('slowdem', async (params, abortController) => {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const response = await fetch(params.url.replace('slowdem://', 'https://tiles.mapterhorn.com/'), {signal: abortController.signal});
+        return {data: await response.arrayBuffer()};
+    });
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        center: [12.6945, 47.0745], // Grossglockner, 3798 m
+        zoom: 13,
+        pitch: 60,
+        style: {
+            version: 8,
+            sources: {
+                osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '&copy; OpenStreetMap contributors'},
+                dem: {type: 'raster-dem', tiles: ['slowdem://{z}/{x}/{y}.webp'], encoding: 'terrarium', tileSize: 512, maxzoom: 14, attribution: '&copy; Mapterhorn'}
+            },
+            layers: [{id: 'osm', type: 'raster', source: 'osm'}],
+            terrain: {source: 'dem', exaggeration: 1}
+        }
+    });
+
+    // Camera altitude from public getters: the center elevation plus the camera's height above the center.
+    function cameraAltitude() {
+        const cameraToCenterPixels = 0.5 * map.getCanvas().clientHeight / Math.tan(map.getVerticalFieldOfView() * Math.PI / 360);
+        const pixelsPerMeter = 512 * 2 ** map.getZoom() / (2 * Math.PI * 6371008.8 * Math.cos(map.getCenter().lat * Math.PI / 180));
+        return map.getCenterElevation() + Math.cos(map.getPitch() * Math.PI / 180) * cameraToCenterPixels / pixelsPerMeter;
+    }
+
+    const readout = document.getElementById('readout');
+    const log = document.getElementById('log');
+    let jumpTime = null;
+    let lastLogged = null;
+    map.on('render', () => {
+        const elevation = map.getCenterElevation();
+        if (jumpTime === null && elevation > 0) document.getElementById('jump').disabled = false; // the start's terrain has landed
+        readout.textContent = `center elevation ${elevation.toFixed(0).padStart(5)} m\ncamera altitude  ${cameraAltitude().toFixed(0).padStart(5)} m`;
+        if (jumpTime !== null && (lastLogged === null || Math.abs(elevation - lastLogged) > 10)) {
+            lastLogged = elevation;
+            log.textContent += `\n${((performance.now() - jumpTime) / 1000).toFixed(1).padStart(4)} s  center ${elevation.toFixed(0).padStart(5)} m  camera ${cameraAltitude().toFixed(0).padStart(5)} m`;
+        }
+    });
+    document.getElementById('jump').onclick = () => {
+        document.getElementById('jump').disabled = true;
+        log.textContent = `before  center ${map.getCenterElevation().toFixed(0).padStart(5)} m  camera ${cameraAltitude().toFixed(0).padStart(5)} m`;
+        jumpTime = performance.now();
+        map.jumpTo({center: [6.8652, 45.8326]}); // Mont Blanc
+    };
+</script>
+</body>
+</html>
