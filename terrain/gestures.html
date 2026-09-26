@@ -65,7 +65,7 @@ if (styleName === 'mapeak') {
 
 const views = {
     pitch: {center: [11.3985, 47.2865], zoom: 17, pitch: 0, bearing: 0},    // the slope above Innsbruck, flat camera: pitch it with two fingers
-    zoom: {center: [11.39085, 47.27574], zoom: 12, pitch: 70, bearing: 0}   // the 3d-terrain example's view: pinch or scroll into the Nordkette
+    zoom: {center: [11.39085, 47.27574], zoom: 12, pitch: 70, bearing: 0, maxZoom: 18}   // the 3d-terrain example's view: pinch or scroll into the Nordkette
 };
 const start = views[q.get('view')] || views.pitch;
 const map = new lib.Map({container: 'map', style, ...start, maxPitch: 85, attributionControl: {compact: true}});
