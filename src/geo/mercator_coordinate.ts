@@ -1,4 +1,5 @@
 import {LngLat, earthRadius} from '../geo/lng_lat.ts';
+import {mercatorTileMatrix} from './projection/tile_matrix.ts';
 
 import type {IMercatorCoordinate} from '@maplibre/maplibre-gl-style-spec';
 import type {LngLatLike} from '../geo/lng_lat.ts';
@@ -168,6 +169,7 @@ export class MercatorCoordinate implements IMercatorCoordinate {
  */
 class MercatorWorldCoordinateHelper implements WorldCoordinateHelper {
     readonly name = 'mercator';
+    readonly tileMatrix = mercatorTileMatrix;
     worldFromLngLat(lng: number, lat: number, altitude?: number): MercatorCoordinate {
         return new MercatorCoordinate(mercatorXfromLng(lng), mercatorYfromLat(lat), altitude === undefined ? 0 : mercatorZfromAltitude(altitude, lat));
     }

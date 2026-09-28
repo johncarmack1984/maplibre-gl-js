@@ -10,6 +10,7 @@ import type {PointProjection} from '../symbol/projection.ts';
 import type {CustomLayerProjectionData, ProjectionDataParams, RendererProjectionData} from './projection/projection_data.ts';
 import type {CoveringTilesDetailsProvider} from './projection/covering_tiles_details_provider.ts';
 import type {Frustum} from '../util/primitives/frustum.ts';
+import type {TileMatrix} from './projection/tile_matrix.ts';
 
 /**
  * @internal
@@ -27,6 +28,11 @@ export interface WorldCoordinateHelper {
      * with `addProjection`.
      */
     name: string;
+    /**
+     * The quad tile grid the world square is laid over, in CRS units: EPSG:3857 meters for mercator, the
+     * registered CRS's own grid otherwise.
+     */
+    tileMatrix: TileMatrix;
     /**
      * lng/lat in degrees and an altitude in meters to a world square position. `z` is
      * `worldZFromAltitude` of the altitude, and stays `0` when no altitude is given.
