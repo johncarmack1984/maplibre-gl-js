@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>easeTo with centerClampedToGround false: 6.11.2, #8566</title>
+<link rel="stylesheet" href="./dist-6.11.2/maplibre-gl.css">
+<style>
+    html, body, #map { margin: 0; height: 100%; background: #000; }
+    #hud { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 2; font: 12px/1.45 ui-monospace, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, 0.66); padding: 6px 8px; border-radius: 6px; pointer-events: none; white-space: pre; }
+    #bar { position: absolute; bottom: 28px; left: 8px; right: 8px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+    #bar a, #bar button { font: 13px system-ui, sans-serif; padding: 8px 10px; border-radius: 6px; border: 0; background: #fff; color: #000; text-decoration: none; }
+    #bar .on { background: #9ad79a; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="hud"></div>
+<div id="bar"></div>
+<script type="module">
+// One map with the center not clamped to the ground, over Zermatt at a center elevation of 4500 m.
+// ?build=release (6.11.2) | 8566 (main plus #8566)
+const q = new URLSearchParams(location.search);
+const builds = {release: {dist: 'dist-6.11.2', label: '6.11.2'}, 8566: {dist: 'dist-8566', label: '#8566'}};
+const build = builds[q.get('build')] ? q.get('build') : '8566';
+const lib = await import(`./${builds[build].dist}/maplibre-gl.mjs`);
+
+const style = {
+    version: 8,
+    sources: {
+        osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '&copy; OpenStreetMap contributors'},
+        dem: {type: 'raster-dem', tiles: ['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'], encoding: 'terrarium', tileSize: 512, maxzoom: 16, attribution: '&copy; Mapterhorn'}
+    },
+    layers: [{id: 'osm', type: 'raster', source: 'osm'}],
+    terrain: {source: 'dem', exaggeration: 1}
+};
+const start = [7.7491, 46.0207];   // Zermatt
+const east = [7.8009, 46.0207];    // 4 km east
+const map = new lib.Map({container: 'map', style, center: start, zoom: 13, pitch: 60, maxPitch: 85, centerClampedToGround: false, attributionControl: {compact: true}});
+map.on('load', () => map.setCenterElevation(4500));
+
+const log = [];
+const bar = document.getElementById('bar');
+bar.innerHTML = Object.keys(builds).map(key => `<a class="${build === key ? 'on' : ''}" href="?build=${key}">${builds[key].label}</a>`).join('') +
+    '<button id="ease">easeTo 4 km east</button><button id="back">jumpTo back at 4500 m</button>';
+document.getElementById('ease').onclick = () => {
+    log.push(`easeTo from center elevation ${map.getCenterElevation().toFixed(0)} m`);
+    map.easeTo({center: map.getCenter().lng < 7.775 ? east : start, duration: 2000});
+    map.once('moveend', () => log.push(`moveend: center elevation ${map.getCenterElevation().toFixed(0)} m`));
+};
+document.getElementById('back').onclick = () => {
+    map.jumpTo({center: start, elevation: 4500});
+    log.push('jumpTo back at 4500 m');
+};
+
+const hud = document.getElementById('hud');
+setInterval(() => {
+    const ground = map.queryTerrainElevation(map.getCenter());
+    hud.textContent = `${builds[build].label}, centerClampedToGround false\n` +
+        `center elevation ${map.getCenterElevation().toFixed(0)} m, terrain under the center ${ground === null ? '-' : `${ground.toFixed(0)} m`}\n` +
+        log.slice(-4).join('\n');
+}, 100);
+window.map = map;
+</script>
+</body>
+</html>
