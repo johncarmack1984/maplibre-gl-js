@@ -20,13 +20,13 @@
 <div id="bar"></div>
 <script type="module">
 // One map, one build at a time, for testing gestures by hand on a phone.
-// ?build=release (6.11.2) | 8547 (main plus #8547) | 8548 (main plus #8548) | pr (main plus #8547 and #8548)
+// ?build=release (6.11.2, the default) | 8547 (main plus #8547) | 8548 (main plus #8548) | pr (main plus #8547 and #8548 as of Sep 26, kept for old links)
 // ?style=terrain (the 3d-terrain example's sources) | mapeak (Mapeak's style, DEM from mapeak.com)
 // ?terrain=auto (on at exaggeration 2 once the pitch passes 10 degrees, off at 10 or below, like Israel Hiking Map) | on
 // ?slow=<ms> answers every DEM tile that much later, like a slow network
 const q = new URLSearchParams(location.search);
-const builds = {release: {dist: 'dist-6.11.2', label: '6.11.2'}, 8547: {dist: 'dist-8547', label: '#8547'}, 8548: {dist: 'dist-8548', label: '#8548'}, pr: {dist: 'dist-8547-8548', label: '#8547 + #8548'}};
-const build = builds[q.get('build')] ? q.get('build') : 'pr';
+const builds = {release: {dist: 'dist-6.11.2', label: '6.11.2'}, 8547: {dist: 'dist-8547', label: '#8547'}, 8548: {dist: 'dist-8548', label: '#8548'}, pr: {dist: 'dist-8547-8548', label: '#8547 + #8548 (Sep 26)'}};
+const build = builds[q.get('build')] ? q.get('build') : 'release';
 const styleName = q.get('style') === 'mapeak' ? 'mapeak' : 'terrain';
 const terrainMode = q.get('terrain') === 'on' ? 'on' : 'auto';
 const slow = +(q.get('slow') || 0);
@@ -80,7 +80,7 @@ map.on('pitch', () => {
 
 const link = (label, params, on) => `<a class="${on ? 'on' : ''}" href="?${new URLSearchParams({build, style: styleName, terrain: terrainMode, slow: String(slow), view: q.get('view') || 'pitch', ...params})}">${label}</a>`;
 document.getElementById('bar').innerHTML = [
-    ...['release', '8547', '8548', 'pr'].map(key => link(builds[key].label, {build: key}, build === key)),
+    ...['release', '8547', '8548'].map(key => link(builds[key].label, {build: key}, build === key)),
     link('pitch view', {view: 'pitch'}, (q.get('view') || 'pitch') === 'pitch'),
     link('zoom view', {view: 'zoom'}, q.get('view') === 'zoom'),
     link('terrain at 10°', {terrain: 'auto'}, terrainMode === 'auto'),
