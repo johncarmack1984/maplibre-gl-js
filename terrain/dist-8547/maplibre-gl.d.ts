@@ -8126,6 +8126,54 @@ declare class TerrainTileManager extends Evented {
   private _isWithinTileRanges;
 }
 //#endregion
+//#region src/render/terrain_coverage.d.ts
+type TerrainElevationSampler = (x: number, y: number, extent: number) => number;
+type TerrainCoverageIndex = {
+  zooms: number[];
+  samplerPerTile: Map<string, TerrainElevationSampler | null>;
+  minElevation: number;
+  maxElevation: number;
+};
+/**
+ * The drawn terrain tiles' DEM data as sampled on the CPU: an index of their elevation samplers, built on first use
+ * and kept until {@link reset} (the renderable tile set changed, or the terrain source), in two views: every drawn
+ * tile's DEM data, a loaded parent's where the tile's own has not loaded, or only the tiles' own.
+ * @param tileManager - the terrain source's tiles, drawn and loaded
+ * @param exaggeration - the terrain's exaggeration, which every sampled elevation includes
+ */
+declare class TerrainCoverage {
+  private readonly tileManager;
+  private readonly exaggeration;
+  private _samplerCache;
+  /** undefined means not built yet; null that no terrain tile is renderable. */
+  private _index;
+  private _ownDemIndex;
+  constructor(tileManager: TerrainTileManager, exaggeration: number);
+  /** Drops the samplers and both indexes. Missing DEM data is never cached, so a later sample can retry. */
+  reset(): void;
+  /**
+   * @param ownDemOnly - whether a tile whose own DEM data has not loaded has none, though a loaded parent's is drawn
+   * in its place
+   * @returns the index, or null when no terrain tile is renderable
+   */
+  getIndex(ownDemOnly?: boolean): TerrainCoverageIndex | null;
+  /**
+   * The elevation the drawn tiles' DEM data gives at a location, in respect of exaggeration, or undefined where no
+   * drawn tile has that data.
+   */
+  sample(lnglat: LngLat, ownDemOnly?: boolean): number | undefined;
+  /** The cached sampler of a tile's raw DEM elevation, or null when its DEM data is not loaded. */
+  getSampler(tileID: OverscaledTileID): TerrainElevationSampler | null;
+  /**
+   * A function that samples a tile's raw DEM elevation, without exaggeration, or null when the tile's DEM data is
+   * not loaded. The DEM tile is the tile's own or a loaded parent's, so the tile's coordinates are scaled and offset
+   * into it, as {@link Terrain._getDEMTileMatrix} does for the renderer; the sampler places DEM pixels at cell
+   * centres, matching `get_elevation` in the vertex shader prelude.
+   */
+  private _createElevationSampler;
+  private _build;
+}
+//#endregion
 //#region src/render/terrain.d.ts
 /**
  * @internal
@@ -8141,13 +8189,6 @@ type TerrainData = {
   texture: WebGLTexture;
   depthTexture: WebGLTexture;
   tile: Tile;
-};
-type TerrainElevationSampler = (x: number, y: number, extent: number) => number;
-type TerrainCoverageIndex = {
-  zooms: number[];
-  samplerPerTile: Map<string, TerrainElevationSampler | null>;
-  minElevation: number;
-  maxElevation: number;
 };
 /**
  * @internal
@@ -8309,13 +8350,6 @@ declare class Terrain {
    */
   getCoverageIndex(): TerrainCoverageIndex | null;
   /**
-   * Get a function that samples the raw DEM elevation of a tile, without exaggeration.
-   * The sampler places DEM pixels at cell centres, matching `get_elevation` in the vertex shader prelude.
-   * @param tileID - the tile id
-   * @returns the sampler, or null when the tile's DEM data is not loaded
-   */
-  createElevationSampler(tileID: OverscaledTileID): TerrainElevationSampler | null;
-  /**
    * Get the matrix that maps a tile's coordinates into the DEM tile it is rendered with.
    * The transform is derived from the loaded DEM tile's own zoom level, not from the source's
    * declared maxzoom: getSourceTile falls back to a loaded parent tile while the deepest DEM
@@ -8370,35 +8404,6 @@ declare class Terrain {
    * @see {@link MapOptions.terrainSkirtLength}
    */
   _buildSkirts(vertexArray: Pos3dArray, indexArray: TriangleIndexArray, meshSize: number, delta: number, northPole: boolean, southPole: boolean): void;
-}
-/**
- * The drawn terrain tiles' DEM data as sampled on the CPU: an index of their elevation samplers, built on first use
- * and kept until {@link reset} (the renderable tile set changed, or the terrain source), in two views: every drawn
- * tile's DEM data, a loaded parent's where the tile's own has not loaded, or only the tiles' own.
- */
-declare class TerrainCoverage {
-  private readonly terrain;
-  private _samplerCache;
-  /** undefined means not built yet; null that no terrain tile is renderable. */
-  private _index;
-  private _ownDemIndex;
-  constructor(terrain: Terrain);
-  /** Drops the samplers and both indexes. Missing DEM data is never cached, so a later sample can retry. */
-  reset(): void;
-  /**
-   * @param ownDemOnly - whether a tile whose own DEM data has not loaded has none, though a loaded parent's is drawn
-   * in its place
-   * @returns the index, or null when no terrain tile is renderable
-   */
-  getIndex(ownDemOnly?: boolean): TerrainCoverageIndex | null;
-  /**
-   * The elevation the drawn tiles' DEM data gives at a location, in respect of exaggeration, or undefined where no
-   * drawn tile has that data.
-   */
-  sample(lnglat: LngLat, ownDemOnly?: boolean): number | undefined;
-  /** The cached sampler of a tile's raw DEM elevation, or null when its DEM data is not loaded. */
-  getSampler(tileID: OverscaledTileID): TerrainElevationSampler | null;
-  private _build;
 }
 //#endregion
 //#region src/geo/projection/covering_tiles.d.ts
@@ -17013,6 +17018,12 @@ type GeolocateControlOptions = {
    * @defaultValue true
    */
   showUserLocation?: boolean;
+  /**
+   * If `true` then map updates from the user's location may also change the map zoom level based on the location update accuracy. If `false` then the map zoom level will not change.
+   * Has no effect when `trackUserLocation` is `false`.
+   * @defaultValue true
+   */
+  zoomToUserAccuracy?: boolean;
 };
 /**
  * The event class for geolocate control state events
@@ -17323,7 +17334,8 @@ export declare class GeolocateControl extends Evented<GeolocateControlEventType>
    */
   _onSuccess: (position: GeolocationPosition) => void;
   /**
-   * Update the camera location to center on the current position
+   * Update the camera location to center on the current position.
+   * The camera change is tagged with `geolocateSource` so it does not switch the control to the background state.
    *
    * @param position - the Geolocation API Position
    */
