@@ -10560,10 +10560,21 @@ var TransformHelper = class {
 		const camPixelY = originalCenterPixelY + dCamPixel * -y;
 		const camPixelZ = originalCenterPixelZ + dCamPixel * z;
 		const { distanceToCenter, clampedElevation } = this._distanceToCenterFromAltElevationPitch(camPixelZ / originalPixelsPerMeter, elevation, cameraPitch);
-		const distanceToCenterPixels = distanceToCenter * originalPixelsPerMeter;
-		const centerPixelX = camPixelX + x * distanceToCenterPixels;
-		const centerPixelY = camPixelY + y * distanceToCenterPixels;
-		const center = new MercatorCoordinate(centerPixelX * mercUnitsPerPixel, centerPixelY * mercUnitsPerPixel, 0).toLngLat();
+		const centerAt = (pixelsPerMeter) => {
+			const distanceToCenterPixels = distanceToCenter * pixelsPerMeter;
+			return new MercatorCoordinate((camPixelX + x * distanceToCenterPixels) * mercUnitsPerPixel, (camPixelY + y * distanceToCenterPixels) * mercUnitsPerPixel, 0).toLngLat();
+		};
+		let pixelsPerMeter = originalPixelsPerMeter;
+		let center = centerAt(pixelsPerMeter);
+		let step = Infinity;
+		for (let pass = 0; pass < 10; pass++) {
+			const centerPixelsPerMeter = mercatorZfromAltitude(1, center.lat) * this.worldSize;
+			const nextStep = Math.abs(centerPixelsPerMeter - pixelsPerMeter);
+			if (nextStep <= 1e-12 * pixelsPerMeter || nextStep >= step) break;
+			step = nextStep;
+			pixelsPerMeter = centerPixelsPerMeter;
+			center = centerAt(pixelsPerMeter);
+		}
 		const mercUnitsPerMeter = mercatorZfromAltitude(1, center.lat);
 		const zoom = scaleZoom(this.height / 2 / Math.tan(this.fovInRadians / 2) / distanceToCenter / mercUnitsPerMeter / this.tileSize);
 		this._elevation = clampedElevation;
@@ -11461,6 +11472,14 @@ function bisect(ray, isBelowTerrain, lo, hi, tolerance) {
 const TARGET_WORLD_STEP_PX = 4;
 const MAX_SAMPLES = 512;
 const MERCATOR_BISECT_EPSILON_WORLD_PX = .001;
+/**
+* How many times {@link MercatorTransform.recalculateZoomAndCenter} picks the terrain under the center and moves the
+* center onto it, and how far above or below the terrain a center may stay. Each pass keeps the camera where it is,
+* so the center's latitude changes the mercator scale the next pass sees and the terrain pick moves with it; the
+* remainder shrinks by the scale difference each pass, from meters to under a millimeter on the second.
+*/
+const CENTER_ON_TERRAIN_PASSES = 3;
+const CENTER_ON_TERRAIN_TOLERANCE_M = 1e-4;
 var MercatorTransform = class MercatorTransform {
 	get pixelsToClipSpaceMatrix() {
 		return this._helper.pixelsToClipSpaceMatrix;
@@ -11781,10 +11800,13 @@ var MercatorTransform = class MercatorTransform {
 		return this._coveringTilesDetailsProvider;
 	}
 	recalculateZoomAndCenter(terrain) {
-		const center = terrain && this._terrainPointPastMaxZoom(terrain) || this.screenPointToLocation(this.centerPoint, terrain);
-		const elevation = terrain ? terrain.getElevationForLngLat(center, this) : 0;
-		if (this.pitch < 90 && elevation >= this.getCameraAltitude()) return;
-		this._helper.recalculateZoomAndCenter(elevation);
+		for (let pass = 0; pass < CENTER_ON_TERRAIN_PASSES; pass++) {
+			const center = terrain && this._terrainPointPastMaxZoom(terrain) || this.screenPointToLocation(this.centerPoint, terrain);
+			const elevation = terrain ? terrain.getElevationForLngLat(center, this) : 0;
+			if (this.pitch < 90 && elevation >= this.getCameraAltitude()) return;
+			this._helper.recalculateZoomAndCenter(elevation);
+			if (!terrain || Math.abs(terrain.getElevationForLngLat(this.center, this) - this.elevation) <= CENTER_ON_TERRAIN_TOLERANCE_M) return;
+		}
 	}
 	/**
 	* Moves the center so that `lnglat`, on the ground at `elevation` meters, renders
@@ -23506,7 +23528,8 @@ var HandlerManager = class {
 //#region src/ui/camera.ts
 /**
 * How many times a camera update outside a held gesture raises a camera it found inside the terrain, each time by as far
-* as the terrain still reaches above it; the new pitch and zoom move the near clipping plane.
+* as the terrain still reaches above it; the new pitch and zoom move the near clipping plane, so the remainder shrinks
+* with each pass, and three leave it within a few meters of a floor 20 km above the center in the tests.
 */
 const MAX_CAMERA_RAISES = 3;
 /**
@@ -24028,10 +24051,7 @@ var Camera = class extends Evented {
 			tr.setElevation(terrain.getElevationForLngLat(tr.center, tr));
 			const corrected = this._raiseCameraAboveTerrain(tr);
 			if (corrected !== tr) tr.apply(corrected, false);
-		} else {
-			tr.recalculateZoomAndCenter(terrain);
-			tr.setElevation(terrain.getElevationForLngLat(tr.center, tr));
-		}
+		} else tr.recalculateZoomAndCenter(terrain);
 	}
 	/**
 	* @internal
@@ -24079,21 +24099,19 @@ var Camera = class extends Evented {
 	* Keeps the camera above the terrain for a camera update. While a gesture holds the center elevation over mercator
 	* terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is raised on the
 	* given transform just far enough that the camera and its near clipping plane clear the terrain, and lowered again
-	* as the terrain allows, so the gesture keeps its pitch and zoom and continues from the lifted camera; the renderer
-	* drops whatever is nearer than that plane, so terrain reaching above it would show as a hole into the ground.
-	* Otherwise see {@link Camera._raiseCameraAboveTerrain}.
+	* as the terrain allows, so the gesture keeps its pitch and zoom. Otherwise see {@link Camera._raiseCameraAboveTerrain}.
 	* @param tr - the transform the camera update edits
 	* @returns the transform to render: `tr`, or its corrected copy
 	*/
 	_keepCameraAboveTerrain(tr) {
 		const hold = this._elevationHold;
 		if (!this.terrain || hold?.holder !== "gesture" || tr.pitch >= 90 || !this.getCenterClampedToGround() || tr.getClippingPlane()) return this._raiseCameraAboveTerrain(tr);
-		const lift = hold.lift?.elevation === tr.elevation ? hold.lift.height : 0;
+		const lift = hold.lift?.liftedElevation === tr.elevation ? hold.lift.liftHeight : 0;
 		const height = Math.max(0, this._terrainHeightAboveCamera(tr) + lift);
 		if (height !== lift) tr.setElevation(tr.elevation - lift + height);
 		hold.lift = height > 0 ? {
-			elevation: tr.elevation,
-			height
+			liftedElevation: tr.elevation,
+			liftHeight: height
 		} : null;
 		return tr;
 	}
@@ -24124,9 +24142,10 @@ var Camera = class extends Evented {
 	/**
 	* @internal
 	* How far the terrain reaches above the camera, or the drawn terrain above one of nine points spread over its
-	* near clipping plane, in meters, whichever is more; zero or less while all are clear. The points are a 3 by 3 grid
-	* weighted bilinearly over the plane's four corners, the frustum's first four points in order around the plane. The
-	* plane is checked on mercator only, where the frustum is in mercator coordinates.
+	* near clipping plane, in meters, whichever is more; zero or less while all are clear. The renderer drops whatever
+	* is nearer than that plane, so terrain reaching above it would show as a hole into the ground. The points are a
+	* 3 by 3 grid weighted bilinearly over the plane's four corners, the frustum's first four points in order around
+	* the plane. The plane is checked on mercator only, where the frustum is in mercator coordinates.
 	* @param tr - the transform whose camera is checked
 	*/
 	_terrainHeightAboveCamera(tr) {

@@ -11521,8 +11521,8 @@ declare class ElevationHold {
    * not raised it. A held elevation other than the one it left was set anew, by a take, and carries no lift.
    */
   lift: {
-    elevation: number;
-    height: number;
+    liftedElevation: number;
+    liftHeight: number;
   } | null;
   private _terrainChanged;
   /**
@@ -11795,9 +11795,7 @@ declare class Camera extends Evented<MapEventType> {
    * Keeps the camera above the terrain for a camera update. While a gesture holds the center elevation over mercator
    * terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is raised on the
    * given transform just far enough that the camera and its near clipping plane clear the terrain, and lowered again
-   * as the terrain allows, so the gesture keeps its pitch and zoom and continues from the lifted camera; the renderer
-   * drops whatever is nearer than that plane, so terrain reaching above it would show as a hole into the ground.
-   * Otherwise see {@link Camera._raiseCameraAboveTerrain}.
+   * as the terrain allows, so the gesture keeps its pitch and zoom. Otherwise see {@link Camera._raiseCameraAboveTerrain}.
    * @param tr - the transform the camera update edits
    * @returns the transform to render: `tr`, or its corrected copy
    */
@@ -11816,9 +11814,10 @@ declare class Camera extends Evented<MapEventType> {
   /**
    * @internal
    * How far the terrain reaches above the camera, or the drawn terrain above one of nine points spread over its
-   * near clipping plane, in meters, whichever is more; zero or less while all are clear. The points are a 3 by 3 grid
-   * weighted bilinearly over the plane's four corners, the frustum's first four points in order around the plane. The
-   * plane is checked on mercator only, where the frustum is in mercator coordinates.
+   * near clipping plane, in meters, whichever is more; zero or less while all are clear. The renderer drops whatever
+   * is nearer than that plane, so terrain reaching above it would show as a hole into the ground. The points are a
+   * 3 by 3 grid weighted bilinearly over the plane's four corners, the frustum's first four points in order around
+   * the plane. The plane is checked on mercator only, where the frustum is in mercator coordinates.
    * @param tr - the transform whose camera is checked
    */
   _terrainHeightAboveCamera(tr: ITransform): number;
