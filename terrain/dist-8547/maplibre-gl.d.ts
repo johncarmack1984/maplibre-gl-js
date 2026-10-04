@@ -5813,12 +5813,31 @@ type CustomRenderMethodInput = {
    * @param params - Parameters for the projection data generation.
    */
   getProjectionData: (params: CustomLayerProjectionDataParams) => RendererProjectionData;
+  /**
+   * @experimental
+   * Draws the elevation of the terrain as the map draws it into a texture, so that the layer can place many
+   * objects on the ground on the GPU. Only set in {@link CustomLayerInterface.prerender}, while terrain is enabled.
+   * Call it again after the camera moves, terrain tiles load or the terrain changes, and set up your WebGL state afterwards.
+   */
+  renderTerrainHeightMap?: (target: TerrainHeightMapTarget) => void;
 };
 /**
  * @param gl - The map's gl context.
  * @param options - Argument object with render inputs like camera properties.
  */
 type CustomRenderMethod = (gl: WebGL2RenderingContext, options: CustomRenderMethodInput) => void;
+/**
+ * @experimental
+ * Input for {@link CustomLayerInterface.renderToTerrainTile}.
+ */
+type CustomTerrainRenderInput = {
+  /** The terrain tile to draw. */
+  tileID: UnwrappedTileIDLiteral;
+  /** The width of the tile's framebuffer in pixels. */
+  width: number;
+  /** The height of the tile's framebuffer in pixels. */
+  height: number;
+};
 /**
  * Interface for custom style layers. This is a specification for
  * implementers to model: it is not an exported method or class.
@@ -5928,6 +5947,21 @@ interface CustomLayerInterface {
    */
   prerender?: CustomRenderMethod;
   /**
+   * @experimental
+   * Optional method called instead of `render` while terrain is enabled, to draw the layer into a terrain tile that
+   * MapLibre drapes over the terrain with the fill, line and raster layers around the layer in the style.
+   * Clip space `(-1, -1)` is the tile's south-west corner and `(1, 1)` its north-east corner. Draw over what the
+   * framebuffer holds, with the same blending as `render` and without depth or stencil testing. MapLibre calls it
+   * again when it redraws the tile, and after {@link CustomLayerInterface.terrainTileRevision} changes.
+   */
+  renderToTerrainTile?: (gl: WebGL2RenderingContext, options: CustomTerrainRenderInput) => void;
+  /**
+   * @experimental
+   * Optional number that the layer changes when what it draws in {@link CustomLayerInterface.renderToTerrainTile}
+   * changes, before calling {@link Map.triggerRepaint}, so that MapLibre draws the terrain tiles again.
+   */
+  terrainTileRevision?: number;
+  /**
    * Optional method called when the layer has been added to the Map with {@link Map.addLayer}. This
    * gives the layer a chance to initialize gl resources and register event listeners.
    *
@@ -5958,7 +5992,7 @@ declare class CustomStyleLayer extends StyleLayer {
 }
 //#endregion
 //#region src/webgl/draw/draw_custom.d.ts
-declare function drawCustom(painter: Painter, tileManager: TileManager, layer: CustomStyleLayer, frameRenderContext: FrameRenderContext): void;
+declare function drawCustom(painter: Painter, tileManager: TileManager, layer: CustomStyleLayer, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void;
 //#endregion
 //#region src/webgl/draw/draw_terrain.d.ts
 /**
@@ -8176,6 +8210,22 @@ declare class TerrainCoverage {
 //#endregion
 //#region src/render/terrain.d.ts
 /**
+ * @experimental
+ * A float texture for {@link CustomRenderMethodInput.renderTerrainHeightMap}, such as `RGBA32F`, which needs the
+ * `EXT_color_buffer_float` extension to be drawn into. Red holds the elevation in meters, including the terrain exaggeration, alpha
+ * is 1 where terrain is loaded and 0 elsewhere, and the first row is the south edge.
+ */
+type TerrainHeightMapTarget = {
+  /** A texture in the map's WebGL context. */
+  texture: WebGLTexture;
+  /** The width of the texture in pixels. */
+  width: number;
+  /** The height of the texture in pixels. */
+  height: number;
+  /** The area to draw, `[minX, minY, maxX, maxY]` in {@link MercatorCoordinate} units, with x counting world copies. */
+  bounds: [number, number, number, number];
+};
+/**
  * @internal
  * A terrain GPU related object
  */
@@ -8252,6 +8302,7 @@ declare class Terrain {
    * holds the framebuffer object in size of the screen to render the depth into a texture.
    */
   _fbo: Framebuffer;
+  _heightMapFbo: Framebuffer;
   _fboDepthTexture: Texture;
   _emptyDepthTexture: Texture;
   /**
@@ -8370,6 +8421,12 @@ declare class Terrain {
    * @returns the frame buffer
    */
   getFramebuffer(): Framebuffer;
+  /**
+   * get the framebuffer that draws the height map into a texture of a custom layer
+   * @param texture - the texture to draw into
+   * @returns the frame buffer
+   */
+  getHeightMapFramebuffer(texture: WebGLTexture): Framebuffer;
   /**
    * create a regular mesh which will be used by all terrain-tiles
    * @returns the created regular mesh
@@ -9885,13 +9942,6 @@ interface Projection {
    * and 1 means the projection is fully in the final state.
    */
   get transitionState(): number;
-  /**
-   * @internal
-   * The transition state the projection has at a zoom, as {@link transitionState} reads once the map renders at that
-   * zoom, for a transform that is not rendered yet.
-   * @param zoom - the zoom
-   */
-  transitionStateAt(zoom: number): number;
   /**
    * @internal
    * Cleans up any resources the projection created, especially GPU buffers.
@@ -11499,13 +11549,6 @@ type CameraInitOptions = {
    * with a way to stop them rather than holding a reference to the `HandlerManager`.
    */
   stopHandlers?: () => void;
-  /**
-   * @internal
-   * The projection transition the map draws at a zoom, 0 for mercator to 1 for a globe, see
-   * `Projection.transitionStateAt`. The `Camera` does not own the style's projection (the `Map` does), so it is
-   * injected with a way to read it.
-   */
-  projectionTransitionAt?: (zoom: number) => number;
 };
 /** Who holds the center elevation: a gesture, or an animation with `freezeElevation`. */
 type ElevationHolder = "gesture" | "animation";
@@ -11521,13 +11564,13 @@ declare class ElevationHold {
   /** Whether the hold waits for DEM data under the center: from its start, or since a terrain change left none there. */
   awaitsDem: boolean;
   /**
-   * The elevation {@link Camera._keepCameraAboveTerrain} left on a gesture's transform and how far it raised the held
-   * elevation to get there, so later frames can take the camera back down as the terrain allows; null while it has
-   * not raised it. A held elevation other than the one it left was set anew, by a take, and carries no lift.
+   * While {@link Camera._keepCameraAboveTerrain} has lifted the camera out of the terrain: the elevation the gesture
+   * holds and how far above it the camera was lifted, so later frames can lower it again as the terrain allows and
+   * tell the lifted elevation from one a take set anew, which carries no lift; null while nothing is lifted.
    */
   lift: {
-    liftedElevation: number;
-    liftHeight: number;
+    heldElevation: number;
+    height: number;
   } | null;
   private _terrainChanged;
   /**
@@ -11565,11 +11608,6 @@ declare class Camera extends Evented<MapEventType> {
    * a reference to the `HandlerManager`. See {@link CameraInitOptions.stopHandlers}.
    */
   _stopHandlers: () => void;
-  /**
-   * @internal
-   * See {@link CameraInitOptions.projectionTransitionAt}.
-   */
-  _projectionTransitionAt: ((zoom: number) => number) | undefined;
   _moving: boolean;
   _zooming: boolean;
   _rotating: boolean;
@@ -11798,9 +11836,10 @@ declare class Camera extends Evented<MapEventType> {
   /**
    * @internal
    * Keeps the camera above the terrain for a camera update. While a gesture holds the center elevation over mercator
-   * terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is raised on the
+   * terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is lifted on the
    * given transform just far enough that the camera and its near clipping plane clear the terrain, and lowered again
-   * as the terrain allows, so the gesture keeps its pitch and zoom. Otherwise see {@link Camera._raiseCameraAboveTerrain}.
+   * as the terrain allows, so the gesture keeps its pitch and zoom. Any other camera update keeps its center elevation
+   * and {@link Camera._raiseCameraByPitchAndZoom} moves the camera instead.
    * @param tr - the transform the camera update edits
    * @returns the transform to render: `tr`, or its corrected copy
    */
@@ -11808,14 +11847,14 @@ declare class Camera extends Evented<MapEventType> {
   /**
    * @internal
    * Where the camera is inside the terrain, re-solves pitch and zoom on a copy of the transform so the camera sits
-   * above it at the same ground position, still looking at the same center, and the transform the update edits keeps
-   * what it asked for; over mercator terrain high enough that its near clipping plane clears the terrain too. Without
+   * above it at the same ground position, still looking at the same center at the same elevation, and the transform
+   * the update edits keeps what it asked for; over mercator terrain high enough that its near clipping plane clears the terrain too. Without
    * terrain the camera is kept above sea level, which only needs checking where the center elevation is negative or
-   * the pitch passes 90 degrees.
+   * the pitch passes 90 degrees. On a globe the camera is left where it is.
    * @param tr - the transform the camera update edits
    * @returns `tr` while the camera is clear, else the corrected copy
    */
-  _raiseCameraAboveTerrain(tr: ITransform): ITransform;
+  _raiseCameraByPitchAndZoom(tr: ITransform): ITransform;
   /**
    * @internal
    * How far the terrain reaches above the camera, or the drawn terrain above one of nine points spread over its
@@ -11832,18 +11871,16 @@ declare class Camera extends Evented<MapEventType> {
    * is, so a zoom toward rising terrain slows down before it instead of running into it. Farther terrain is followed
    * only by less than the frame zooms in, so the zoom keeps going in and speeds up gradually; a center ray that slips
    * over a crest onto terrain far behind it, and terrain so near that the zoom passes maxZoom, which would move the
-   * camera back, are left to the gesture's end, as is everything with the center not clamped to the ground. On a
-   * globe drawn as a globe the re-solve does nothing.
+   * camera back, are left to the gesture's end, as is everything with the center not clamped to the ground, and a
+   * globe.
    * @param tr - the requested camera state
    * @param zoomDelta - how far the frame zooms in
    */
   moveCenterOntoTerrain(tr: ITransform, zoomDelta: number): void;
   /**
    * @internal
-   * Called after the camera is done being manipulated. The transform first takes the projection transition the map
-   * draws at its zoom, since a copy of a globe's transform keeps the one it was copied under and would measure that
-   * projection; a hold on the center elevation takes DEM data that landed, see {@link ElevationHold.take}; then the
-   * camera is kept above the terrain, see {@link Camera._keepCameraAboveTerrain};
+   * Called after the camera is done being manipulated. A hold on the center elevation takes DEM data that landed, see
+   * {@link ElevationHold.take}; then the camera is kept above the terrain, see {@link Camera._keepCameraAboveTerrain};
    * `transformCameraUpdate`, if present, proposes its changes on a copy, and the "approved" result is applied to the
    * rendered transform.
    * @param tr - the requested camera end state
@@ -18207,4 +18244,4 @@ declare function setWorkerUrl(value: string): void;
  */
 declare function importScriptInWorkers(workerUrl: string): Promise<void>;
 //#endregion
-export { type Actor, type ActorMessage, type AddLayerObject, type AddProtocolAction, type AddProtocolResponseData, type Alignment, type AlphaImage, type AnchoredCameraOptions, type AnimationOptions, type AroundCenterOptions, type AttributionControlOptions, type BoxZoomEndHandler, type BoxZoomHandlerOptions, type Bucket, type CalculateTileZoomFunction, type CameraForBoundsOptions, type CameraOptions, type CameraUpdateTransformFunction, type CanonicalTileRange, type CanvasSourceSpecification, type CenterZoomBearing, type CollisionBoxArray, type Complete, type ControlPosition, type Coordinates, type CoveringTilesOptions, type CreateTileMeshOptions, type CustomLayerInterface, type CustomLayerProjectionData, type CustomLayerProjectionDataParams, type CustomRenderMethod, type CustomRenderMethodInput, type DashEntry, type Dispatcher, type DistributiveKeys, type DistributiveOmit, type DragPanOptions, type EaseToOptions, type ErrorEventType, Event$1 as Event, type EventTypeMap, type EventedParentData, type ExpiryData, type FeatureIdentifier, type FeatureIndex, type FitBoundsOptions, type FlyToOptions, type FullscreenControlEventType, type FullscreenControlOptions, type GeoJSONFeature, type GeoJSONFeatureDiff, type GeoJSONFeatureId, type GeoJSONSourceDiff, type GeolocateControlEventType, type GeolocateControlOptions, type GestureOptions, type GetClusterOptions, type GetResourceResponse, type GlyphMap, type GlyphPosition, type GlyphPositions, type Handler, type HandlerResult, type IActor, type IControl, type ImageAtlas, type ImageSourceImage, type ImageSourceWarp, type IndicesType, type JumpToOptions, type Listener, type LngLatBoundsLike, type LngLatLike, type LoadTileResult, type LogoControlOptions, Map$1 as Map, Map$1 as MapLibreMap, type MapEventType, type MapGeoJSONFeature, type MapLayerEventType, type MapLayerMouseEvent, type MapLayerTouchEvent, type MapOptions, type MapSourceDataType, type MarkerEventType, type MarkerOptions, type Mat4f32, type Mat4f64, type MessageType, type MissingStyleImageResolver, type NavigationControlOptions, type Offset, type OverscaledTileID, type PaddingOptions, type PaintPropertyEntry, type Painter, Point, type PointLike, type PopupEventType, type PopupOptions, type PositionAnchor, type ProjectionData, type ProjectionDataParams, type ProjectionMatrix, type QueryRenderedFeaturesOptions, type QuerySourceFeatureOptions, type RendererProjectionData, type RequestParameters, type RequestResponseMessageMap, type RequestTransformFunction, type RequireAtLeastOne, type ResourceType, type ScaleControlOptions, type SetClusterOptions, type Source, type SourceClass, type SourceEventType, type StyleGlyph, type StyleImage, type StyleImageData, type StyleImageInterface, type StyleImageMetadata, type StyleImageSource, type StyleImageWebGLData, type StyleImageWebGLTarget, type StyleLayer, type StyleOptions, type StyleSetterOptions, type StyleSwapOptions, type Subscription, type TextFit, type Tile, type TileMesh, type TransformConstrainFunction, type TransformStyleFunction, type Unit, type UnwrappedTileIDLiteral, type UpdateImageOptions, type WebGLContextAttributesWithType, type WorkerGlobalScopeInterface, type WorkerTileResult, getMaxParallelImageRequests, getRTLTextPluginStatus, getVersion, getWorkerCount, getWorkerUrl, importScriptInWorkers, setMaxParallelImageRequests, setRTLTextPlugin, setWorkerCount, setWorkerUrl };
+export { type Actor, type ActorMessage, type AddLayerObject, type AddProtocolAction, type AddProtocolResponseData, type Alignment, type AlphaImage, type AnchoredCameraOptions, type AnimationOptions, type AroundCenterOptions, type AttributionControlOptions, type BoxZoomEndHandler, type BoxZoomHandlerOptions, type Bucket, type CalculateTileZoomFunction, type CameraForBoundsOptions, type CameraOptions, type CameraUpdateTransformFunction, type CanonicalTileRange, type CanvasSourceSpecification, type CenterZoomBearing, type CollisionBoxArray, type Complete, type ControlPosition, type Coordinates, type CoveringTilesOptions, type CreateTileMeshOptions, type CustomLayerInterface, type CustomLayerProjectionData, type CustomLayerProjectionDataParams, type CustomRenderMethod, type CustomRenderMethodInput, type CustomTerrainRenderInput, type DashEntry, type Dispatcher, type DistributiveKeys, type DistributiveOmit, type DragPanOptions, type EaseToOptions, type ErrorEventType, Event$1 as Event, type EventTypeMap, type EventedParentData, type ExpiryData, type FeatureIdentifier, type FeatureIndex, type FitBoundsOptions, type FlyToOptions, type FullscreenControlEventType, type FullscreenControlOptions, type GeoJSONFeature, type GeoJSONFeatureDiff, type GeoJSONFeatureId, type GeoJSONSourceDiff, type GeolocateControlEventType, type GeolocateControlOptions, type GestureOptions, type GetClusterOptions, type GetResourceResponse, type GlyphMap, type GlyphPosition, type GlyphPositions, type Handler, type HandlerResult, type IActor, type IControl, type ImageAtlas, type ImageSourceImage, type ImageSourceWarp, type IndicesType, type JumpToOptions, type Listener, type LngLatBoundsLike, type LngLatLike, type LoadTileResult, type LogoControlOptions, Map$1 as Map, Map$1 as MapLibreMap, type MapEventType, type MapGeoJSONFeature, type MapLayerEventType, type MapLayerMouseEvent, type MapLayerTouchEvent, type MapOptions, type MapSourceDataType, type MarkerEventType, type MarkerOptions, type Mat4f32, type Mat4f64, type MessageType, type MissingStyleImageResolver, type NavigationControlOptions, type Offset, type OverscaledTileID, type PaddingOptions, type PaintPropertyEntry, type Painter, Point, type PointLike, type PopupEventType, type PopupOptions, type PositionAnchor, type ProjectionData, type ProjectionDataParams, type ProjectionMatrix, type QueryRenderedFeaturesOptions, type QuerySourceFeatureOptions, type RendererProjectionData, type RequestParameters, type RequestResponseMessageMap, type RequestTransformFunction, type RequireAtLeastOne, type ResourceType, type ScaleControlOptions, type SetClusterOptions, type Source, type SourceClass, type SourceEventType, type StyleGlyph, type StyleImage, type StyleImageData, type StyleImageInterface, type StyleImageMetadata, type StyleImageSource, type StyleImageWebGLData, type StyleImageWebGLTarget, type StyleLayer, type StyleOptions, type StyleSetterOptions, type StyleSwapOptions, type Subscription, type TerrainHeightMapTarget, type TextFit, type Tile, type TileMesh, type TransformConstrainFunction, type TransformStyleFunction, type Unit, type UnwrappedTileIDLiteral, type UpdateImageOptions, type WebGLContextAttributesWithType, type WorkerGlobalScopeInterface, type WorkerTileResult, getMaxParallelImageRequests, getRTLTextPluginStatus, getVersion, getWorkerCount, getWorkerUrl, importScriptInWorkers, setMaxParallelImageRequests, setRTLTextPlugin, setWorkerCount, setWorkerUrl };

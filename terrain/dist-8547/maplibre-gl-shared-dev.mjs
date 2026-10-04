@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.12.0/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -24361,10 +24361,16 @@ var TaggedString = class TaggedString {
 	* plus, in scripts that do not space their words and so offer no such character, wherever the
 	* word segmenter finds a word. It is not consulted elsewhere, isolating a comma as a word of its
 	* own, nor until such a script turns up, costing more than the rest of this put together.
+	*
+	* Text that fits on one line is left unbroken without weighing any break, unless it asks for a
+	* newline, has no width (which ties with every break) or uses negative spacing (which can make
+	* spaces advance backwards).
 	*/
 	determineLineBreaks(spacing, maxWidth, glyphMap, imagePositions, layoutTextSize) {
+		const totalWidth = this.determineTotalWidth(spacing, glyphMap, imagePositions, layoutTextSize);
+		if (spacing >= 0 && totalWidth > 0 && totalWidth <= maxWidth && !/[\n\r]/.test(this.text)) return [this.length()];
 		const potentialLineBreaks = [];
-		const targetWidth = this.determineAverageLineWidth(spacing, maxWidth, glyphMap, imagePositions, layoutTextSize);
+		const targetWidth = totalWidth / Math.max(1, Math.ceil(totalWidth / maxWidth));
 		const hasZeroWidthSpaces = this.hasZeroWidthSpaces();
 		const graphemes = this.graphemes();
 		let wordStarts = null;
@@ -24384,7 +24390,7 @@ var TaggedString = class TaggedString {
 		}
 		return leastBadBreaks(evaluateBreak(this.length(), currentX, targetWidth, potentialLineBreaks, 0, true));
 	}
-	determineAverageLineWidth(spacing, maxWidth, glyphMap, imagePositions, layoutTextSize) {
+	determineTotalWidth(spacing, glyphMap, imagePositions, layoutTextSize) {
 		let totalWidth = 0;
 		let index = 0;
 		for (const grapheme of this.graphemes()) {
@@ -24392,8 +24398,7 @@ var TaggedString = class TaggedString {
 			totalWidth += getGlyphAdvance(grapheme, section, glyphMap, imagePositions, spacing, layoutTextSize);
 			index++;
 		}
-		const lineCount = Math.max(1, Math.ceil(totalWidth / maxWidth));
-		return totalWidth / lineCount;
+		return totalWidth;
 	}
 };
 //#endregion

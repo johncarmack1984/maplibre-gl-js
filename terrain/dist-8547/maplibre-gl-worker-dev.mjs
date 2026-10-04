@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.12.0/LICENSE.txt
 */
 import { D as clipGeometry, Dt as AlphaImage, En as getJSON, F as potpack, Gi as Point, H as rtlWorkerPlugin, Ht as CollisionBoxArray, In as isAbortError, K as GeoJSONVT, Lr as warnOnce, N as ImageAtlas, Nn as removeProtocol, Ot as RGBAImage, Rn as JSON_PREFIX, Tn as getArrayBuffer, Vr as EXTENT, _ as createStyleLayer, _r as isWorker, c as GeoJSONWrapper, d as OverscaledTileID, dn as featureFilter, fn as createExpression, fr as isImageBitmap, ft as VectorTile, g as Actor, i as MLTVectorTile, ir as extend, jn as addProtocol, kn as makeRequest, l as fromVectorTileJs, nr as ensureError, o as DictionaryCoder, r as FeatureIndex, rn as register, t as BoundedLRUCache, tn as EvaluationParameters, un as groupByLayout, ur as getImageData, xt as DEMData, yr as mapObject, z as PbfReader } from "./maplibre-gl-shared-dev.mjs";
 //#region src/style/style_layer_index.ts

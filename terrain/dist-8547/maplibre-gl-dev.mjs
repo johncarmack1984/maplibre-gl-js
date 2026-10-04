@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.12.0/LICENSE.txt
 */
 import { $ as maxMercatorHorizonAngle, $n as degreesToRadians, $r as transformMat4, $t as Properties, A as evaluateSizeForZoom, Ai as ortho, An as sameOrigin, Ar as rollPitchBearingToQuat, At as polygonIntersectsPolygon, B as isCluster, Bi as determinant, Bn as angleToRotateBetweenVectors2D, Br as pixelsToTileUnits, Bt as UniformMatrix4f, C as addDynamicAttributes, Ci as create$1, Cn as AJAXError, Cr as pick, Ct as isHillshadeStyleLayer, Di as identity, Dn as getReferrer, Dr as readImageUsingVideoFrame, Dt as AlphaImage, E as TextAnchorEnum, Ei as fromScaling, En as getJSON, Er as rayPlaneIntersection, Et as renderColorRamp, F as potpack, Fi as scale, Fn as AbortError, Fr as translatePosition, Ft as Uniform3f, G as isLineStyleLayer, Gi as Point, Gn as clone$2, Gr as sqrLen, Gt as Pos3dArray, Hi as rotate, Hn as arrayBufferToImageBitmap, Hr as create$3, Ht as CollisionBoxArray, I as isStyleImageWebGLData, Ii as translate, In as isAbortError, Ir as uniqueId, It as Uniform4f, J as calculateTileMatrix, Jn as createMat4f64, Jr as fromValues, Jt as RasterBoundsArray, Kn as createIdentityMat4f32, Kr as zero, Kt as PosArray, L as renderStyleImage, Li as create$4, Ln as throwIfAborted, Lr as warnOnce, Lt as UniformColor, M as getAnchorAlignment, Mi as rotateX, Mn as getProtocol, Mr as sphericalToCartesian, Mt as Uniform1f, Ni as rotateY$1, Nn as removeProtocol, Nr as subscribe, Nt as Uniform1i, O as clipLine, Oi as invert$1, On as getVideo, Or as remapSaturate, Ot as RGBAImage, P as ImagePosition, Pi as rotateZ, Pn as config, Pr as threePlaneIntersection, Pt as Uniform2f, Q as getMercatorHorizon, Qn as defaultEasing, Qr as scale$2, Qt as DataConstantProperty, R as parseGlyphPbf, Ri as fromRotation, Rr as wrap, Rt as UniformColorArray, S as SymbolBucket, Si as copy, Sn as Evented, Sr as parseCacheControl, St as Texture, T as getAnchorJustification, Ti as exactEquals, Tn as getArrayBuffer, Tr as radiansToDegrees, Tt as isHeatmapStyleLayer, U as collisionCircleLayout, Ui as isOffscreenCanvasDistorted, Un as bezier, Ur as length$1, Ut as CollisionCircleLayoutArray, V as codePointUsesLocalIdeographFontFamily, Vi as invert, Vn as arrayBufferToImage, Vr as EXTENT, Vt as SegmentVector, W as symbolInstance, Wi as offscreenCanvasSupported, Wn as clamp, Wr as scale$3, Wt as LineStripIndexArray, X as cameraMercatorCoordinate, Xn as createVec4f64, Xr as slerp, Xt as createLayout, Y as cameraDirectionFromPitchBearing, Yn as createVec3f64, Yr as multiply$1, Yt as TriangleIndexArray, Z as cameraMercatorCoordinateFromCenterAndRotation, Zn as deepEqual, Zr as mul, Zt as isRasterStyleLayer, _ as createStyleLayer, _i as transformMat3, _n as diff, _r as isWorker, _t as SOUTH_POLE_Y, a as GeoJSONFeature, ai as len, an as emitValidationErrors, ar as filterObject, at as latFromMercatorY, b as isBackgroundStyleLayer, bi as zero$1, bn as ErrorEvent, br as mod, bt as isColorReliefStyleLayer, ci as negate, cn as validateStyleAndEmit, cr as getAngleDelta, ct as mercatorYfromLat, d as OverscaledTileID, di as rotateY, dn as featureFilter, dr as getRollPitchBearing, dt as earthRadius, ei as add, en as Transitionable, er as differenceOfAnglesDegrees, et as projectToWorldCoordinates, f as UnwrappedTileID, fi as rotateZ$1, fr as isImageBitmap, g as Actor, gi as subtract, gn as ValidationError, gr as isTouchableOrPointableType, gt as NORTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as sub, hn as Color, hr as isTouchableEvent, ht as isFillStyleLayer, ii as dot, in as SPEC_SOURCE_TYPES, ir as extend, it as altitudeFromMercatorZ, ji as perspective, jn as addProtocol, jr as scaleZoom, jt as toEvaluationFeature, k as evaluateSizeForFeature, ki as multiply, kn as makeRequest, kr as rollPitchBearingEqual, kt as isCircleStyleLayer, li as normalize, ln as emptyStyle, lr as getEdgeTiles, lt as mercatorZfromAltitude, m as compareTileId, mi as scaleAndAdd, mn as ProjectionDefinition, mr as isSafari, mt as Bounds, n as TileCache, ni as cross, nn as ZoomHistory, nr as ensureError, nt as unprojectFromWorldCoordinates, oi as length, on as validateAndEmit, or as findLineIntersection, ot as lngFromMercatorX, p as calculateTileKey, pi as scale$1, pn as interpolateFactory, pr as isPointableEvent, pt as EXTENT_BOUNDS, q as isFillExtrusionStyleLayer, qn as createIdentityMat4f64, qr as fromEuler, qt as QuadTriangleArray, ri as distance, rr as evaluateZoomSnap, rt as MercatorCoordinate, s as GEOJSON_TILE_LAYER_NAME, si as lerp, sn as validateStyle, sr as getAABB, st as mercatorXfromLng, ti as clone, tn as EvaluationParameters, tr as distanceOfAnglesRadians, tt as tileCoordinatesToMercatorCoordinates, u as CanonicalTileID, ui as rotateX$1, ut as LngLat, v as isCustomStyleLayer, vi as transformMat4$1, vn as derefLayers, vr as lerp$1, vt as SubdivisionGranularityExpression, w as getOverlapMode, wi as equals, wn as GLOBAL_DISPATCHER_ID, wr as pointPlaneSignedDistance, wt as HEATMAP_FULL_RENDER_FBO_KEY, x as isSymbolStyleLayer, xi as clone$1, xn as Event, xr as nextPowerOfTwo, y as validateCustomStyleLayer, yi as transformQuat, yn as latest, yr as mapObject, yt as SubdivisionGranularitySetting, zi as create$2, zn as MAX_VALID_LATITUDE, zr as zoomScale, zt as UniformFloatArray } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2";
+var version$2 = "6.12.0";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -9833,6 +9833,7 @@ const shaders = {
 	symbolTextAndIcon: prepare("#define SDF_PX 8.0\n#define SDF 1.0\n#define ICON 0.0\nuniform bool u_is_halo;uniform bool u_is_text;uniform sampler2D u_texture;uniform sampler2D u_texture_icon;uniform highp float u_gamma_scale;in vec4 v_data0;in vec3 v_data1;flat in float v_is_sdf;\n#pragma maplibre: define highp vec4 fill_color\n#pragma maplibre: define highp vec4 halo_color\n#pragma maplibre: define lowp float halo_width\n#pragma maplibre: define lowp float halo_blur\nvoid main() {\n#pragma maplibre: initialize highp vec4 fill_color\n#pragma maplibre: initialize highp vec4 halo_color\n#pragma maplibre: initialize lowp float halo_width\n#pragma maplibre: initialize lowp float halo_blur\nfloat total_opacity=v_data1[2];if (v_is_sdf==ICON) {vec2 tex_icon=v_data0.zw;fragColor=texture(u_texture_icon,tex_icon)*total_opacity;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\nreturn;}vec2 tex=v_data0.xy;float EDGE_GAMMA=0.105/u_device_pixel_ratio;float gamma_scale=v_data1.x;float size=v_data1.y;float fontScale=size/24.0;highp float gamma=EDGE_GAMMA/(fontScale*u_gamma_scale);lowp float buff=(256.0-64.0)/256.0;lowp float dist=texture(u_texture,tex).a;lowp vec4 color_alpha_out,color_alpha_out_halo;if (u_is_text) {highp float gamma_scaled=gamma*gamma_scale;highp float alpha=smoothstep(buff-gamma_scaled,buff+gamma_scaled,dist);color_alpha_out=fill_color*(alpha*total_opacity);}if (u_is_halo) {highp float gamma_halo=(halo_blur*1.19/SDF_PX+EDGE_GAMMA)/(fontScale*u_gamma_scale);lowp float buff_halo=(6.0-halo_width/fontScale)/SDF_PX;highp float gamma_scaled_halo=gamma_halo*gamma_scale;highp float alpha_halo=smoothstep(buff_halo-gamma_scaled_halo,buff_halo+gamma_scaled_halo,dist);color_alpha_out_halo=halo_color*(alpha_halo*total_opacity);}if (u_is_text && u_is_halo) {fragColor=color_alpha_out+(1.-color_alpha_out.a)*color_alpha_out_halo;} else if (u_is_halo) {fragColor=color_alpha_out_halo;} else {fragColor=color_alpha_out;}\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "layout(location=0) in vec4 a_pos_offset;layout(location=1) in uvec4 a_data;layout(location=2) in vec3 a_projected_pos;layout(location=3) in uint a_fade_opacity;layout(location=4) in float a_height_offset;uniform bool u_is_size_zoom_constant;uniform bool u_is_size_feature_constant;uniform highp float u_size_t;uniform highp float u_size;uniform mat4 u_label_plane_matrix;uniform mat4 u_coord_matrix;uniform bool u_is_text;uniform bool u_pitch_with_map;uniform bool u_rotate_symbol;uniform vec2 u_texsize;uniform vec2 u_texsize_icon;uniform bool u_is_along_line;uniform bool u_is_variable_anchor;uniform vec2 u_translation;uniform float u_pitched_scale;uniform bool u_is_offset;uniform bool u_height_anchor_ground;out vec4 v_data0;out vec3 v_data1;flat out float v_is_sdf;\n#pragma maplibre: define highp vec4 fill_color\n#pragma maplibre: define highp vec4 halo_color\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define lowp float halo_width\n#pragma maplibre: define lowp float halo_blur\nvoid main() {\n#pragma maplibre: initialize highp vec4 fill_color\n#pragma maplibre: initialize highp vec4 halo_color\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize lowp float halo_width\n#pragma maplibre: initialize lowp float halo_blur\nvec2 a_pos=a_pos_offset.xy;vec2 a_offset=a_pos_offset.zw;vec2 a_tex=vec2(a_data.xy);vec2 a_size=vec2(a_data.zw);float a_size_min=float(a_data.z >> 1u);float is_sdf=float(a_data.z & 1u);float ele=a_height_offset+(u_height_anchor_ground ? get_elevation(a_pos) : 0.0);highp float segment_angle=-a_projected_pos[2];float size;if (!u_is_size_zoom_constant && !u_is_size_feature_constant) {size=mix(a_size_min,a_size[1],u_size_t)/128.0;} else if (u_is_size_zoom_constant && !u_is_size_feature_constant) {size=a_size_min/128.0;} else {size=u_size;}vec2 translated_a_pos=a_pos+u_translation;vec4 projectedPoint=projectTileWithElevation(translated_a_pos,ele);vec2 fade_opacity=unpack_opacity(a_fade_opacity);float visibility=calculate_visibility(projectedPoint);float fade_change=fade_opacity[1] > 0.5 ? u_symbol_fade_change :-u_symbol_fade_change;float interpolated_fade_opacity=max(0.0,min(visibility,fade_opacity[0]+fade_change));float total_opacity=opacity*interpolated_fade_opacity;if (total_opacity < 0.1){gl_Position=vec4(-2.,-2.,-2.,1.);return;}highp float camera_to_anchor_distance=projectedPoint.w;highp float distance_ratio=u_pitch_with_map ?\ncamera_to_anchor_distance/u_camera_to_center_distance :\nu_camera_to_center_distance/camera_to_anchor_distance;highp float perspective_ratio=clamp(0.5+0.5*distance_ratio,0.0,4.0);if (!u_is_offset) {size*=perspective_ratio;}float fontScale=size/24.0;highp float symbol_rotation=0.0;if (u_rotate_symbol) {vec4 offsetProjectedPoint=projectTileWithElevation(translated_a_pos+vec2(1,0),ele);vec2 a=projectedPoint.xy/projectedPoint.w;vec2 b=offsetProjectedPoint.xy/offsetProjectedPoint.w;symbol_rotation=atan((b.y-a.y)/u_aspect_ratio,b.x-a.x);}highp float angle_sin=sin(segment_angle+symbol_rotation);highp float angle_cos=cos(segment_angle+symbol_rotation);mat2 rotation_matrix=mat2(angle_cos,-1.0*angle_sin,angle_sin,angle_cos);vec4 projected_pos;if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);} else if (u_pitch_with_map) {projected_pos=u_label_plane_matrix*vec4(a_projected_pos.xy+u_translation,ele,1.0);} else {projected_pos=u_label_plane_matrix*projectTileWithElevation(a_projected_pos.xy+u_translation,ele);}float z=float(u_pitch_with_map)*projected_pos.z/projected_pos.w;float projectionScaling=1.0;\n#ifdef GLOBE\nif(u_pitch_with_map && !u_is_along_line) {float anchor_pos_tile_y=(u_coord_matrix*vec4(projected_pos.xy/projected_pos.w,z,1.0)).y;projectionScaling=mix(projectionScaling,1.0/circumferenceRatioAtTileY(anchor_pos_tile_y)*u_pitched_scale,u_projection_transition);}\n#endif\nvec4 finalPos=u_coord_matrix*vec4(projected_pos.xy/projected_pos.w+rotation_matrix*(a_offset/32.0*fontScale)*projectionScaling,z,1.0);if(u_pitch_with_map) {finalPos=projectTileWithElevation(finalPos.xy,finalPos.z);}float gamma_scale=finalPos.w;gl_Position=finalPos;v_data0.xy=a_tex/u_texsize;v_data0.zw=a_tex/u_texsize_icon;v_data1=vec3(gamma_scale,size,total_opacity);v_is_sdf=is_sdf;}"),
 	terrain: prepare("uniform sampler2D u_texture;uniform vec4 u_fog_color;uniform vec4 u_horizon_color;uniform float u_fog_ground_blend;uniform float u_fog_ground_blend_opacity;uniform float u_horizon_fog_blend;uniform bool u_is_globe_mode;in vec2 v_texture_pos;in float v_fog_depth;const float gamma=2.2;vec4 gammaToLinear(vec4 color) {return pow(color,vec4(gamma));}vec4 linearToGamma(vec4 color) {return pow(color,vec4(1.0/gamma));}void main() {vec4 surface_color=texture(u_texture,vec2(v_texture_pos.x,1.0-v_texture_pos.y));if (!u_is_globe_mode && u_fog_ground_blend_opacity > 0.0 && v_fog_depth > u_fog_ground_blend) {vec4 surface_color_linear=gammaToLinear(surface_color);float blend_color=smoothstep(0.0,1.0,max((v_fog_depth-u_horizon_fog_blend)/(1.0-u_horizon_fog_blend),0.0));vec4 fog_horizon_color_linear=mix(gammaToLinear(u_fog_color),gammaToLinear(u_horizon_color),blend_color);float factor_fog=max(v_fog_depth-u_fog_ground_blend,0.0)/(1.0-u_fog_ground_blend);fragColor=linearToGamma(mix(surface_color_linear,fog_horizon_color_linear,pow(factor_fog,2.0)*u_fog_ground_blend_opacity));} else {fragColor=surface_color;}}", "layout(location=0) in vec3 a_pos3d;uniform mat4 u_fog_matrix;uniform float u_ele_delta;out vec2 v_texture_pos;out float v_fog_depth;void main() {float ele=get_elevation(a_pos3d.xy);float ele_delta=a_pos3d.z==1.0 ? u_ele_delta : 0.0;v_texture_pos=a_pos3d.xy/8192.0;gl_Position=projectTileFor3D(a_pos3d.xy,ele-ele_delta);vec4 pos=u_fog_matrix*vec4(a_pos3d.xy,ele,1.0);v_fog_depth=pos.z/pos.w*0.5+0.5;}"),
 	terrainDepth: prepare("in float v_depth;const highp vec4 bitSh=vec4(256.*256.*256.,256.*256.,256.,1.);const highp vec4 bitMsk=vec4(0.,vec3(1./256.0));highp vec4 pack(highp float value) {highp vec4 comp=fract(value*bitSh);comp-=comp.xxyz*bitMsk;return comp;}void main() {fragColor=pack(v_depth);}", "layout(location=0) in vec3 a_pos3d;uniform float u_ele_delta;out float v_depth;void main() {float ele=get_elevation(a_pos3d.xy);float ele_delta=a_pos3d.z==1.0 ? u_ele_delta : 0.0;gl_Position=projectTileFor3D(a_pos3d.xy,ele-ele_delta);v_depth=gl_Position.z/gl_Position.w;}"),
+	terrainHeight: prepare("in highp float v_elevation;void main() {fragColor=vec4(v_elevation,0.0,0.0,1.0);}", "layout(location=0) in vec3 a_pos3d;uniform vec4 u_tile_bounds;out highp float v_elevation;void main() {v_elevation=get_elevation(a_pos3d.xy);vec2 position=u_tile_bounds.xy+a_pos3d.xy/8192.0*u_tile_bounds.zw;gl_Position=vec4(position.x*2.0-1.0,1.0-position.y*2.0,0.0,1.0);}"),
 	atmosphere: prepare("#ifdef GL_ES\nprecision highp float;\n#endif\nin vec3 view_direction;uniform vec3 u_sun_pos;uniform vec3 u_globe_position;uniform float u_globe_radius;uniform float u_atmosphere_blend;/**Shader use from https:*Made some change to adapt to MapLibre Globe geometry*/const float PI=3.141592653589793;const int iSteps=5;const int jSteps=3;/*radius of the planet*/const float EARTH_RADIUS=6371e3;/*radius of the atmosphere*/const float ATMOS_RADIUS=6471e3;vec2 rsi(vec3 r0,vec3 rd,float sr) {float a=dot(rd,rd);float b=2.0*dot(rd,r0);float c=dot(r0,r0)-(sr*sr);float d=(b*b)-4.0*a*c;if (d < 0.0) return vec2(1e5,-1e5);return vec2((-b-sqrt(d))/(2.0*a),(-b+sqrt(d))/(2.0*a));}vec4 atmosphere(vec3 r,vec3 r0,vec3 pSun,float iSun,float rPlanet,float rAtmos,vec3 kRlh,float kMie,float shRlh,float shMie,float g) {pSun=normalize(pSun);r=normalize(r);vec2 p=rsi(r0,r,rAtmos);if (p.x > p.y) {return vec4(0.0,0.0,0.0,1.0);}if (p.x < 0.0) {p.x=0.0;}vec3 pos=r0+r*p.x;vec2 p2=rsi(r0,r,rPlanet);if (p2.x <=p2.y && p2.x > 0.0) {p.y=min(p.y,p2.x);}float iStepSize=(p.y-p.x)/float(iSteps);float iTime=p.x+iStepSize*0.5;vec3 totalRlh=vec3(0,0,0);vec3 totalMie=vec3(0,0,0);float iOdRlh=0.0;float iOdMie=0.0;float mu=dot(r,pSun);float mumu=mu*mu;float gg=g*g;float pRlh=3.0/(16.0*PI)*(1.0+mumu);float pMie=3.0/(8.0*PI)*((1.0-gg)*(mumu+1.0))/(pow(1.0+gg-2.0*mu*g,1.5)*(2.0+gg));for (int i=0; i < iSteps; i++) {vec3 iPos=r0+r*iTime;float iHeight=length(iPos)-rPlanet;float odStepRlh=exp(-iHeight/shRlh)*iStepSize;float odStepMie=exp(-iHeight/shMie)*iStepSize;iOdRlh+=odStepRlh;iOdMie+=odStepMie;float jStepSize=rsi(iPos,pSun,rAtmos).y/float(jSteps);float jTime=jStepSize*0.5;float jOdRlh=0.0;float jOdMie=0.0;for (int j=0; j < jSteps; j++) {vec3 jPos=iPos+pSun*jTime;float jHeight=length(jPos)-rPlanet;jOdRlh+=exp(-jHeight/shRlh)*jStepSize;jOdMie+=exp(-jHeight/shMie)*jStepSize;jTime+=jStepSize;}vec3 attn=exp(-(kMie*(iOdMie+jOdMie)+kRlh*(iOdRlh+jOdRlh)));totalRlh+=odStepRlh*attn;totalMie+=odStepMie*attn;iTime+=iStepSize;}float opacity=exp(-(length(kRlh)*length(totalRlh)+kMie*length(totalMie)));vec3 color=iSun*(pRlh*kRlh*totalRlh+pMie*kMie*totalMie);return vec4(color,opacity);}void main() {vec3 scale_camera_pos=-u_globe_position*EARTH_RADIUS/u_globe_radius;vec4 color=atmosphere(normalize(view_direction),scale_camera_pos,u_sun_pos,22.0,EARTH_RADIUS,ATMOS_RADIUS,vec3(5.5e-6,13.0e-6,22.4e-6),21e-6,8e3,1.2e3,0.758\n);color.rgb=1.0-exp(-1.0*color.rgb);color=pow(color,vec4(1.0/2.2));fragColor=vec4(color.rgb,1.0-color.a)*u_atmosphere_blend;}", "layout(location=0) in vec2 a_pos;uniform mat4 u_inv_proj_matrix;out vec3 view_direction;void main() {view_direction=(u_inv_proj_matrix*vec4(a_pos,0.0,1.0)).xyz;gl_Position=vec4(a_pos,0.0,1.0);}"),
 	sky: prepare("uniform vec4 u_sky_color;uniform vec4 u_horizon_color;uniform vec2 u_horizon;uniform vec2 u_horizon_normal;uniform float u_sky_horizon_blend;uniform float u_sky_blend;uniform vec3 u_globe_position;uniform float u_globe_radius;uniform float u_atmosphere_blend;in vec3 v_view_direction;const float ATMOSPHERE_HEIGHT_TO_GLOBE_RADIUS=100000.0/6371000.0;void main() {float x=gl_FragCoord.x;float y=gl_FragCoord.y;float blend=(y-u_horizon.y)*u_horizon_normal.y+(x-u_horizon.x)*u_horizon_normal.x;float opacity=1.0;if (u_sky_blend > 0.0) {vec3 ray=normalize(v_view_direction);float globe_distance=length(u_globe_position);float angle_to_globe_center=acos(clamp(dot(ray,u_globe_position)/globe_distance,-1.0,1.0));float horizon_angle=asin(min(u_globe_radius/globe_distance,1.0));blend=mix(blend,((angle_to_globe_center-horizon_angle)*u_camera_to_center_distance+1.0)*u_device_pixel_ratio,u_sky_blend);float closest_approach=max(dot(ray,u_globe_position),0.0);float lowest_altitude=sqrt(max(globe_distance*globe_distance-closest_approach*closest_approach,0.0))-u_globe_radius;float atmosphere_height=u_globe_radius*ATMOSPHERE_HEIGHT_TO_GLOBE_RADIUS;float inside_atmosphere=1.0-smoothstep(atmosphere_height,10.0*atmosphere_height,globe_distance-u_globe_radius);float through_atmosphere=1.0-smoothstep(0.0,atmosphere_height,lowest_altitude);opacity=inside_atmosphere*through_atmosphere*(1.0-u_atmosphere_blend);}if (blend > 0.0) {if (blend < u_sky_horizon_blend) {fragColor=mix(u_sky_color,u_horizon_color,pow(1.0-blend/u_sky_horizon_blend,2.0));} else {fragColor=u_sky_color;}}fragColor*=mix(1.0,opacity,u_sky_blend);}", "layout(location=0) in vec2 a_pos;uniform mat4 u_inv_proj_matrix;out vec3 v_view_direction;void main() {v_view_direction=(u_inv_proj_matrix*vec4(a_pos,0.0,1.0)).xyz;gl_Position=vec4(a_pos,1.0,1.0);}")
 };
@@ -9927,9 +9928,6 @@ var MercatorProjection = class {
 	}
 	get name() {
 		return "mercator";
-	}
-	transitionStateAt() {
-		return 0;
 	}
 	get useSubdivision() {
 		return false;
@@ -10058,6 +10056,8 @@ function normalizeCenter(tr, center) {
 function getTileZoom(zoom) {
 	return Math.max(0, Math.floor(zoom));
 }
+/** The most passes {@link TransformHelper._centerAlongView} takes to agree on the mercator scale at the center it finds. */
+const MAX_CENTER_PASSES = 10;
 /**
 * @internal
 * This class stores all values that define a transform's state,
@@ -10518,20 +10518,7 @@ var TransformHelper = class {
 		const { distanceToCenter, clampedElevation } = this._distanceToCenterFromAltElevationPitch(alt, this.elevation, cameraPitch);
 		const { x, y } = cameraDirectionFromPitchBearing(cameraPitch, cameraBearing);
 		const camMercator = MercatorCoordinate.fromLngLat(lnglat, alt);
-		let metersPerMercUnit = altitudeFromMercatorZ(1, camMercator.y);
-		let centerMercator;
-		let dMercator;
-		let iter = 0;
-		const maxIter = 10;
-		do {
-			iter += 1;
-			if (iter > maxIter) break;
-			dMercator = distanceToCenter / metersPerMercUnit;
-			const dx = x * dMercator;
-			const dy = y * dMercator;
-			centerMercator = new MercatorCoordinate(camMercator.x + dx, camMercator.y + dy);
-			metersPerMercUnit = 1 / centerMercator.meterInMercatorCoordinateUnits();
-		} while (Math.abs(distanceToCenter - dMercator * metersPerMercUnit) > 1e-12);
+		const { centerMercator, dMercator } = this._centerAlongView(camMercator, x, y, distanceToCenter, altitudeFromMercatorZ(1, camMercator.y));
 		return {
 			center: centerMercator.toLngLat(),
 			elevation: clampedElevation,
@@ -10540,46 +10527,24 @@ var TransformHelper = class {
 	}
 	/**
 	* Moves the center along the view to the given elevation with the camera where it is, and sets the zoom to match.
-	* The center's distance from the camera is in meters at its new latitude, where the mercator scale differs from
-	* the old center's and is unknown until the center is, so the scale is iterated from the old center's, as
-	* {@link calculateCenterFromCameraLngLatAlt} does: two or three passes converge, and where they would not, zoomed
-	* far out at a high latitude, the last stable center is kept. The matrices are recomputed even where `setZoom`
-	* leaves the zoom as it was, as at a zoom bound, since the center and its elevation have moved.
+	* The center is found along the view from the camera's position, which is kept, by {@link _centerAlongView},
+	* starting from the old center's mercator scale. The matrices are recomputed even where `setZoom` leaves the zoom
+	* as it was, as at a zoom bound, since the center and its elevation have moved.
 	* @param elevation - the elevation in meters for the center
 	*/
 	recalculateZoomAndCenter(elevation) {
 		if (this.elevation - elevation === 0) return;
-		const mercUnitsPerPixel = 1 / this.worldSize;
-		const originalPixelsPerMeter = mercatorZfromAltitude(1, this.center.lat) * this.worldSize;
-		const originalCenterMercator = MercatorCoordinate.fromLngLat(this.center, this.elevation);
-		const originalCenterPixelX = originalCenterMercator.x / mercUnitsPerPixel;
-		const originalCenterPixelY = originalCenterMercator.y / mercUnitsPerPixel;
-		const originalCenterPixelZ = originalCenterMercator.z / mercUnitsPerPixel;
 		const cameraPitch = this.pitch;
 		const cameraBearing = this.bearing;
 		const { x, y, z } = cameraDirectionFromPitchBearing(cameraPitch, cameraBearing);
-		const dCamPixel = this.cameraToCenterDistance;
-		const camPixelX = originalCenterPixelX + dCamPixel * -x;
-		const camPixelY = originalCenterPixelY + dCamPixel * -y;
-		const camPixelZ = originalCenterPixelZ + dCamPixel * z;
-		const { distanceToCenter, clampedElevation } = this._distanceToCenterFromAltElevationPitch(camPixelZ / originalPixelsPerMeter, elevation, cameraPitch);
-		const centerAt = (pixelsPerMeter) => {
-			const distanceToCenterPixels = distanceToCenter * pixelsPerMeter;
-			return new MercatorCoordinate((camPixelX + x * distanceToCenterPixels) * mercUnitsPerPixel, (camPixelY + y * distanceToCenterPixels) * mercUnitsPerPixel, 0).toLngLat();
-		};
-		let pixelsPerMeter = originalPixelsPerMeter;
-		let center = centerAt(pixelsPerMeter);
-		let step = Infinity;
-		for (let pass = 0; pass < 10; pass++) {
-			const centerPixelsPerMeter = mercatorZfromAltitude(1, center.lat) * this.worldSize;
-			const nextStep = Math.abs(centerPixelsPerMeter - pixelsPerMeter);
-			if (nextStep <= 1e-12 * pixelsPerMeter || nextStep >= step) break;
-			step = nextStep;
-			pixelsPerMeter = centerPixelsPerMeter;
-			center = centerAt(pixelsPerMeter);
-		}
-		const mercUnitsPerMeter = mercatorZfromAltitude(1, center.lat);
-		const zoom = scaleZoom(this.height / 2 / Math.tan(this.fovInRadians / 2) / distanceToCenter / mercUnitsPerMeter / this.tileSize);
+		const originalCenterMercator = MercatorCoordinate.fromLngLat(this.center, this.elevation);
+		const originalMetersPerMercUnit = 1 / mercatorZfromAltitude(1, this.center.lat);
+		const dCamMercator = this.cameraToCenterDistance / this.worldSize;
+		const camMercator = new MercatorCoordinate(originalCenterMercator.x - x * dCamMercator, originalCenterMercator.y - y * dCamMercator, originalCenterMercator.z + z * dCamMercator);
+		const { distanceToCenter, clampedElevation } = this._distanceToCenterFromAltElevationPitch(camMercator.z * originalMetersPerMercUnit, elevation, cameraPitch);
+		const { centerMercator, dMercator } = this._centerAlongView(camMercator, x, y, distanceToCenter, originalMetersPerMercUnit);
+		const center = centerMercator.toLngLat();
+		const zoom = scaleZoom(this.cameraToCenterDistance / dMercator / this.tileSize);
 		this._elevation = clampedElevation;
 		this._center = center;
 		const previousZoom = this._zoom;
@@ -10589,6 +10554,37 @@ var TransformHelper = class {
 			this.constrainInternal();
 			this._calcMatrices();
 		}
+	}
+	/**
+	* The center `distanceToCenter` meters from the camera along the view, in mercator units, and that distance in
+	* mercator units. The mercator scale changes with latitude and the center's latitude is unknown until the center
+	* is: each pass places the center with the scale at the center the last pass found, from `metersPerMercUnit`,
+	* and stops once two passes agree. Zoomed far out at a high latitude the scale changes faster along the view than
+	* a pass follows; a pass that would move the center further than the last one did ends the search at the last
+	* stable center instead of oscillating (#6775).
+	* @param cameraMercator - the camera's position
+	* @param x - the view direction's x component, see {@link cameraDirectionFromPitchBearing}
+	* @param y - the view direction's y component
+	* @param distanceToCenter - the camera's distance to the center in meters
+	* @param metersPerMercUnit - the mercator scale to start from
+	*/
+	_centerAlongView(cameraMercator, x, y, distanceToCenter, metersPerMercUnit) {
+		let dMercator = distanceToCenter / metersPerMercUnit;
+		let centerMercator = new MercatorCoordinate(cameraMercator.x + x * dMercator, cameraMercator.y + y * dMercator);
+		let step = Infinity;
+		for (let pass = 1; pass < MAX_CENTER_PASSES; pass++) {
+			const centerMetersPerMercUnit = 1 / centerMercator.meterInMercatorCoordinateUnits();
+			const nextStep = Math.abs(centerMetersPerMercUnit - metersPerMercUnit);
+			if (nextStep <= 1e-12 * metersPerMercUnit || nextStep >= step) break;
+			step = nextStep;
+			metersPerMercUnit = centerMetersPerMercUnit;
+			dMercator = distanceToCenter / metersPerMercUnit;
+			centerMercator = new MercatorCoordinate(cameraMercator.x + x * dMercator, cameraMercator.y + y * dMercator);
+		}
+		return {
+			centerMercator,
+			dMercator
+		};
 	}
 	_distanceToCenterFromAltElevationPitch(alt, elevation, pitch) {
 		const dzNormalized = -Math.cos(degreesToRadians(pitch));
@@ -10855,6 +10851,11 @@ const MERCATOR_BISECT_EPSILON_WORLD_PX = .001;
 */
 const CENTER_ON_TERRAIN_PASSES = 3;
 const CENTER_ON_TERRAIN_TOLERANCE_M = 1e-4;
+/**
+* The clip-space depth of the near clipping plane, where the ray segment through a screen pixel starts for a terrain
+* pick so that it holds all the view shows; see `getRaySegmentFromPixel`.
+*/
+const NEAR_PLANE_CLIP_Z = -1;
 var MercatorTransform = class MercatorTransform {
 	get pixelsToClipSpaceMatrix() {
 		return this._helper.pixelsToClipSpaceMatrix;
@@ -11226,7 +11227,7 @@ var MercatorTransform = class MercatorTransform {
 	_terrainPointPastMaxZoom(terrain) {
 		const index = terrain.getCoverageIndex();
 		if (!index) return null;
-		const { near, far } = this.getRaySegmentFromPixel(this.centerPoint, -1);
+		const { near, far } = this.getRaySegmentFromPixel(this.centerPoint, NEAR_PLANE_CLIP_Z);
 		const distanceAtMaxZoom = this.cameraToCenterDistance * zoomScale(this.zoom - this.maxZoom);
 		const start = lerp([], near, far, Math.max(0, (distanceAtMaxZoom - this.nearZ) / (this.farZ - this.nearZ)));
 		if (isBelowTerrainSample(sampleAt(index, terrain.exaggeration, start[0] / this.worldSize, start[1] / this.worldSize), start[2])) return null;
@@ -11234,7 +11235,7 @@ var MercatorTransform = class MercatorTransform {
 	}
 	/** {@inheritDoc ITransform.screenTerrainPointToMercatorCoordinate} */
 	screenTerrainPointToMercatorCoordinate(p, terrain) {
-		const { near, far } = this.getRaySegmentFromPixel(p, -1);
+		const { near, far } = this.getRaySegmentFromPixel(p, NEAR_PLANE_CLIP_Z);
 		return this._raycastTerrain(near, far, terrain);
 	}
 	/** The first point where the segment from `near` to `far` enters the terrain from above, or null. */
@@ -11288,8 +11289,8 @@ var MercatorTransform = class MercatorTransform {
 	/**
 	* Returns the segment of the ray through the given screen pixel from its point at depth `clipZ` in clip space to the
 	* far clipping plane. The default of 0 lies at about twice the near clipping plane's distance from the camera, which
-	* is all a plane intersection needs; -1 starts the segment at the near clipping plane, so it holds all the view
-	* shows, as terrain picks need.
+	* is all a plane intersection needs; `NEAR_PLANE_CLIP_Z` starts the segment at the near clipping plane, so it holds
+	* all the view shows, as terrain picks need.
 	*/
 	getRaySegmentFromPixel(p, clipZ = 0) {
 		const coord0 = [
@@ -11626,7 +11627,7 @@ var MercatorTransform = class MercatorTransform {
 		const p = new Point(clip[0] / w, clip[1] / w);
 		const hit = this.screenTerrainPointToMercatorCoordinate(p, terrain);
 		if (hit == null) return false;
-		const segment = this.getRaySegmentFromPixel(p, -1);
+		const segment = this.getRaySegmentFromPixel(p, NEAR_PLANE_CLIP_Z);
 		const tLocation = raySegmentParameter(segment, location.x * this.worldSize, location.y * this.worldSize, elevation);
 		return raySegmentParameter(segment, hit.x * this.worldSize, hit.y * this.worldSize, hit.z) < tLocation * .99;
 	}
@@ -11954,9 +11955,6 @@ var VerticalPerspectiveProjection = class {
 	get transitionState() {
 		return 1;
 	}
-	transitionStateAt() {
-		return 1;
-	}
 	get useSubdivision() {
 		return true;
 	}
@@ -12018,7 +12016,15 @@ var GlobeProjection = class extends Evented {
 		this._verticalPerspectiveProjection = new VerticalPerspectiveProjection();
 	}
 	get transitionState() {
-		return transitionStateOf(this.properties.get("type"));
+		const currentProjectionSpecValue = this.properties.get("type");
+		if (typeof currentProjectionSpecValue === "string" && currentProjectionSpecValue === "mercator") return 0;
+		if (typeof currentProjectionSpecValue === "string" && currentProjectionSpecValue === "vertical-perspective") return 1;
+		if (currentProjectionSpecValue instanceof ProjectionDefinition) {
+			if (currentProjectionSpecValue.from === currentProjectionSpecValue.to) return currentProjectionSpecValue.from === "mercator" ? 0 : 1;
+			if (currentProjectionSpecValue.from === "vertical-perspective" && currentProjectionSpecValue.to === "mercator") return 1 - currentProjectionSpecValue.transition;
+			if (currentProjectionSpecValue.from === "mercator" && currentProjectionSpecValue.to === "vertical-perspective") return currentProjectionSpecValue.transition;
+		}
+		return 1;
 	}
 	get useGlobeRendering() {
 		return this.transitionState > 0;
@@ -12028,9 +12034,6 @@ var GlobeProjection = class extends Evented {
 	}
 	get name() {
 		return "globe";
-	}
-	transitionStateAt(zoom) {
-		return transitionStateOf(this._transitioning.possiblyEvaluate(new EvaluationParameters(zoom, { now: now() })).get("type"));
 	}
 	get useSubdivision() {
 		return this.currentProjection.useSubdivision;
@@ -12073,16 +12076,6 @@ var GlobeProjection = class extends Evented {
 		this.properties = this._transitioning.possiblyEvaluate(parameters);
 	}
 };
-function transitionStateOf(currentProjectionSpecValue) {
-	if (typeof currentProjectionSpecValue === "string" && currentProjectionSpecValue === "mercator") return 0;
-	if (typeof currentProjectionSpecValue === "string" && currentProjectionSpecValue === "vertical-perspective") return 1;
-	if (currentProjectionSpecValue instanceof ProjectionDefinition) {
-		if (currentProjectionSpecValue.from === currentProjectionSpecValue.to) return currentProjectionSpecValue.from === "mercator" ? 0 : 1;
-		if (currentProjectionSpecValue.from === "vertical-perspective" && currentProjectionSpecValue.to === "mercator") return 1 - currentProjectionSpecValue.transition;
-		if (currentProjectionSpecValue.from === "mercator" && currentProjectionSpecValue.to === "vertical-perspective") return currentProjectionSpecValue.transition;
-	}
-	return 1;
-}
 //#endregion
 //#region src/geo/projection/globe_utils.ts
 function getGlobeCircumferencePixels(transform) {
@@ -12092,7 +12085,7 @@ function getGlobeCircumferencePixels(transform) {
 function globeDistanceOfLocationsPixels(transform, a, b) {
 	const vecA = angularCoordinatesToSurfaceVector(a);
 	const vecB = angularCoordinatesToSurfaceVector(b);
-	const dot$2 = dot(vecA, vecB);
+	const dot$2 = clamp(dot(vecA, vecB), -1, 1);
 	const radians = Math.acos(dot$2);
 	const circumference = getGlobeCircumferencePixels(transform);
 	return radians / (2 * Math.PI) * circumference;
@@ -17129,6 +17122,7 @@ const terrainUniforms = (context, locations) => ({
 	"u_is_globe_mode": new Uniform1f(context, locations.u_is_globe_mode)
 });
 const terrainDepthUniforms = (context, locations) => ({ "u_ele_delta": new Uniform1f(context, locations.u_ele_delta) });
+const terrainHeightUniforms = (context, locations) => ({ "u_tile_bounds": new Uniform4f(context, locations.u_tile_bounds) });
 const terrainUniformValues = (eleDelta, fogMatrix, sky, pitch, isGlobeMode) => ({
 	"u_texture": 0,
 	"u_ele_delta": eleDelta,
@@ -17141,6 +17135,10 @@ const terrainUniformValues = (eleDelta, fogMatrix, sky, pitch, isGlobeMode) => (
 	"u_is_globe_mode": isGlobeMode ? 1 : 0
 });
 const terrainDepthUniformValues = (eleDelta) => ({ "u_ele_delta": eleDelta });
+/**
+* @param tileBounds - the tile's west and north edge and its width and height, as fractions of the height map
+*/
+const terrainHeightUniformValues = (tileBounds) => ({ "u_tile_bounds": tileBounds });
 //#endregion
 //#region src/webgl/program.ts
 function getTokenizedAttributesAndUniforms(array) {
@@ -17916,6 +17914,7 @@ const programUniforms = {
 	backgroundPattern: backgroundPatternUniforms,
 	terrain: terrainUniforms,
 	terrainDepth: terrainDepthUniforms,
+	terrainHeight: terrainHeightUniforms,
 	atmosphere: atmosphereUniforms,
 	sky: skyUniforms
 };
@@ -19306,58 +19305,6 @@ function selectDebugSource(style, zoom) {
 	return selectedSource;
 }
 //#endregion
-//#region src/webgl/draw/draw_custom.ts
-function drawCustom(painter, tileManager, layer, frameRenderContext) {
-	const { isRenderingGlobe } = frameRenderContext.data;
-	const context = painter.context;
-	const implementation = layer.implementation;
-	const projection = painter.style.projection;
-	const transform = frameRenderContext.transform;
-	const projectionData = transform.getProjectionDataForCustomLayer(isRenderingGlobe);
-	const customLayerArgs = {
-		farZ: transform.farZ,
-		nearZ: transform.nearZ,
-		fov: transform.fov * Math.PI / 180,
-		modelViewProjectionMatrix: transform.modelViewProjectionMatrix,
-		projectionMatrix: transform.projectionMatrix,
-		shaderData: {
-			variantName: projection.shaderVariantName,
-			vertexShaderPrelude: `const float PI = 3.141592653589793;\nuniform mat4 u_projection_matrix;\n${projection.shaderPreludeCode.vertexSource}`,
-			define: projection.shaderDefine
-		},
-		defaultProjectionData: projectionData,
-		getProjectionData: (params) => {
-			return transform.getProjectionData({
-				overscaledTileID: new OverscaledTileID(params.tileID.canonical.z, params.tileID.wrap ?? 0, params.tileID.canonical.z, params.tileID.canonical.x, params.tileID.canonical.y),
-				aligned: params.aligned,
-				applyGlobeMatrix: params.applyGlobeMatrix,
-				applyTerrainMatrix: params.applyTerrainMatrix
-			});
-		}
-	};
-	const renderingMode = implementation.renderingMode ? implementation.renderingMode : "2d";
-	if (frameRenderContext.currentPass === "offscreen") {
-		const prerender = implementation.prerender;
-		if (prerender) {
-			painter.setCustomLayerDefaults();
-			context.setColorMode(frameRenderContext.colorModeForRenderPass());
-			prerender.call(implementation, context.gl, customLayerArgs);
-			context.setDirty();
-			painter.setBaseState();
-		}
-	} else if (frameRenderContext.currentPass === "translucent") {
-		painter.setCustomLayerDefaults();
-		context.setColorMode(frameRenderContext.colorModeForRenderPass());
-		context.setStencilMode(StencilMode.disabled);
-		const depthMode = renderingMode === "3d" ? frameRenderContext.getDepthModeFor3D() : frameRenderContext.getDepthModeForSublayer(0, DepthMode.ReadOnly);
-		context.setDepthMode(depthMode);
-		implementation.render(context.gl, customLayerArgs);
-		context.setDirty();
-		painter.setBaseState();
-		context.bindFramebuffer.set(null);
-	}
-}
-//#endregion
 //#region src/webgl/draw/draw_terrain.ts
 /**
 * Redraw the Depth Framebuffer
@@ -19429,6 +19376,122 @@ function drawTerrain(painter, terrain, tiles, frameRenderContext) {
 		const projectionData = frameRenderContext.getProjectionDataForTile(tile.tileID, { applyTerrainMatrix: false });
 		program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, "terrain", mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 	}
+}
+/**
+* Draws the elevation of the loaded renderable terrain tiles into a texture, see {@link CustomRenderMethodInput.renderTerrainHeightMap}.
+*/
+function drawTerrainHeightMap(frameRenderContext, terrain, target) {
+	const context = frameRenderContext.context;
+	const gl = context.gl;
+	const [minX, minY, maxX, maxY] = target.bounds;
+	context.setDirty();
+	const framebuffer = terrain.getHeightMapFramebuffer(target.texture);
+	context.viewport.set([
+		0,
+		0,
+		target.width,
+		target.height
+	]);
+	context.clear({ color: Color.transparent });
+	const program = frameRenderContext.useProgram("terrainHeight", null, true);
+	for (const tile of terrain.tileManager.getRenderableTiles()) {
+		const terrainData = terrain.getTerrainData(tile.tileID);
+		if (!terrainData.tile?.dem) continue;
+		const { canonical, wrap } = tile.tileID;
+		const tileSize = 1 / (1 << canonical.z);
+		const uniformValues = terrainHeightUniformValues([
+			(canonical.x * tileSize + wrap - minX) / (maxX - minX),
+			(canonical.y * tileSize - minY) / (maxY - minY),
+			tileSize / (maxX - minX),
+			tileSize / (maxY - minY)
+		]);
+		const mesh = terrain.getTerrainMesh(tile.tileID);
+		program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled, uniformValues, terrainData, null, "terrain", mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
+	}
+	framebuffer.colorAttachment.set(null);
+}
+//#endregion
+//#region src/webgl/draw/draw_custom.ts
+function drawCustom(painter, tileManager, layer, coords, frameRenderContext) {
+	if (frameRenderContext.isRenderingToTexture) {
+		drawCustomTerrainTile(painter, layer, coords[0], frameRenderContext);
+		return;
+	}
+	const { isRenderingGlobe } = frameRenderContext.data;
+	const { terrain } = frameRenderContext;
+	const context = painter.context;
+	const implementation = layer.implementation;
+	const projection = painter.style.projection;
+	const transform = frameRenderContext.transform;
+	const projectionData = transform.getProjectionDataForCustomLayer(isRenderingGlobe);
+	const customLayerArgs = {
+		farZ: transform.farZ,
+		nearZ: transform.nearZ,
+		fov: transform.fov * Math.PI / 180,
+		modelViewProjectionMatrix: transform.modelViewProjectionMatrix,
+		projectionMatrix: transform.projectionMatrix,
+		shaderData: {
+			variantName: projection.shaderVariantName,
+			vertexShaderPrelude: `const float PI = 3.141592653589793;\nuniform mat4 u_projection_matrix;\n${projection.shaderPreludeCode.vertexSource}`,
+			define: projection.shaderDefine
+		},
+		defaultProjectionData: projectionData,
+		getProjectionData: (params) => {
+			return transform.getProjectionData({
+				overscaledTileID: new OverscaledTileID(params.tileID.canonical.z, params.tileID.wrap ?? 0, params.tileID.canonical.z, params.tileID.canonical.x, params.tileID.canonical.y),
+				aligned: params.aligned,
+				applyGlobeMatrix: params.applyGlobeMatrix,
+				applyTerrainMatrix: params.applyTerrainMatrix
+			});
+		},
+		renderTerrainHeightMap: terrain && frameRenderContext.currentPass === "offscreen" ? (target) => drawTerrainHeightMap(frameRenderContext, terrain, target) : void 0
+	};
+	const renderingMode = implementation.renderingMode ? implementation.renderingMode : "2d";
+	if (frameRenderContext.currentPass === "offscreen") {
+		const prerender = implementation.prerender;
+		if (prerender) {
+			painter.setCustomLayerDefaults();
+			context.setColorMode(frameRenderContext.colorModeForRenderPass());
+			prerender.call(implementation, context.gl, customLayerArgs);
+			context.setDirty();
+			painter.setBaseState();
+		}
+	} else if (frameRenderContext.currentPass === "translucent") {
+		painter.setCustomLayerDefaults();
+		context.setColorMode(frameRenderContext.colorModeForRenderPass());
+		context.setStencilMode(StencilMode.disabled);
+		const depthMode = renderingMode === "3d" ? frameRenderContext.getDepthModeFor3D() : frameRenderContext.getDepthModeForSublayer(0, DepthMode.ReadOnly);
+		context.setDepthMode(depthMode);
+		implementation.render(context.gl, customLayerArgs);
+		context.setDirty();
+		painter.setBaseState();
+		context.bindFramebuffer.set(null);
+	}
+}
+/**
+* Draws a custom layer into the terrain tile texture that is bound, see {@link CustomLayerInterface.renderToTerrainTile},
+* and binds that texture again for the layers after it.
+*/
+function drawCustomTerrainTile(painter, layer, tileID, frameRenderContext) {
+	const context = painter.context;
+	const framebuffer = context.bindFramebuffer.get();
+	const viewport = context.viewport.get();
+	painter.setCustomLayerDefaults();
+	context.setColorMode(frameRenderContext.colorModeForRenderPass());
+	context.setDepthMode(DepthMode.disabled);
+	context.setStencilMode(StencilMode.disabled);
+	layer.implementation.renderToTerrainTile(context.gl, {
+		tileID: {
+			canonical: tileID.canonical,
+			wrap: tileID.wrap
+		},
+		width: viewport[2],
+		height: viewport[3]
+	});
+	context.setDirty();
+	painter.setBaseState();
+	context.bindFramebuffer.set(framebuffer);
+	context.viewport.set(viewport);
 }
 //#endregion
 //#region src/webgl/draw/draw_sky.ts
@@ -19983,7 +20046,7 @@ var Painter = class Painter {
 		else if (isColorReliefStyleLayer(layer)) draw.colorRelief(painter, tileManager, layer, coords, frameRenderContext);
 		else if (isRasterStyleLayer(layer)) draw.raster(painter, tileManager, layer, coords, frameRenderContext);
 		else if (isBackgroundStyleLayer(layer)) draw.background(painter, tileManager, layer, coords, frameRenderContext);
-		else if (isCustomStyleLayer(layer)) draw.custom(painter, tileManager, layer, frameRenderContext);
+		else if (isCustomStyleLayer(layer)) draw.custom(painter, tileManager, layer, coords, frameRenderContext);
 	}
 	static {
 		this.MAX_TEXTURE_POOL_SIZE_PER_BUCKET = 50;
@@ -22912,6 +22975,13 @@ var HandlerManager = class {
 */
 const MAX_CAMERA_RAISES = 3;
 /**
+* How far from the terrain a zoom-in frame's re-solve may leave the held center and still count as moving it onto the
+* terrain. A re-solve that lands leaves the center within a millimeter; a meter or more means the terrain the center ray
+* hits and the terrain the DEM reports under the new center disagree, over a rise the scene has not drawn yet or past a
+* crest the ray slipped over, and the frame keeps the held center instead.
+*/
+const MAX_CENTER_OFF_TERRAIN_M = 1;
+/**
 * A hold on the center elevation, see {@link Camera.holdElevation}: one that started where no DEM data under a center
 * clamped to the ground had loaded waits for it and takes it when it lands. It holds no transform: a gesture's takes
 * on the terrain change, on the requested camera state its frames read; an animation's on its next frame, on the
@@ -22998,7 +23068,6 @@ var Camera = class extends Evented {
 		this._centerClampedToGround = options.centerClampedToGround ?? true;
 		this.transformCameraUpdate = options.transformCameraUpdate ?? null;
 		this._stopHandlers = options.stopHandlers ?? (() => {});
-		this._projectionTransitionAt = options.projectionTransitionAt;
 		this.on("moveend", () => {
 			delete this._requestedCameraState;
 		});
@@ -23428,7 +23497,7 @@ var Camera = class extends Evented {
 	putCenterBackOnTerrain(tr, terrain, tookDem) {
 		if (tookDem && terrain.getDrawnElevationForLngLat(tr.center, true) === void 0) {
 			tr.setElevation(terrain.getElevationForLngLat(tr.center, tr));
-			const corrected = this._raiseCameraAboveTerrain(tr);
+			const corrected = this._raiseCameraByPitchAndZoom(tr);
 			if (corrected !== tr) tr.apply(corrected, false);
 		} else tr.recalculateZoomAndCenter(terrain);
 	}
@@ -23476,36 +23545,40 @@ var Camera = class extends Evented {
 	/**
 	* @internal
 	* Keeps the camera above the terrain for a camera update. While a gesture holds the center elevation over mercator
-	* terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is raised on the
+	* terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is lifted on the
 	* given transform just far enough that the camera and its near clipping plane clear the terrain, and lowered again
-	* as the terrain allows, so the gesture keeps its pitch and zoom. Otherwise see {@link Camera._raiseCameraAboveTerrain}.
+	* as the terrain allows, so the gesture keeps its pitch and zoom. Any other camera update keeps its center elevation
+	* and {@link Camera._raiseCameraByPitchAndZoom} moves the camera instead.
 	* @param tr - the transform the camera update edits
 	* @returns the transform to render: `tr`, or its corrected copy
 	*/
 	_keepCameraAboveTerrain(tr) {
 		const hold = this._elevationHold;
-		if (!this.terrain || hold?.holder !== "gesture" || tr.pitch >= 90 || !this.getCenterClampedToGround() || tr.getClippingPlane()) return this._raiseCameraAboveTerrain(tr);
-		const lift = hold.lift?.liftedElevation === tr.elevation ? hold.lift.liftHeight : 0;
-		const height = Math.max(0, this._terrainHeightAboveCamera(tr) + lift);
-		if (height !== lift) tr.setElevation(tr.elevation - lift + height);
+		if (!this.terrain || hold?.holder !== "gesture" || tr.pitch >= 90 || !this.getCenterClampedToGround() || tr.getClippingPlane()) return this._raiseCameraByPitchAndZoom(tr);
+		const lift = hold.lift && hold.lift.heldElevation + hold.lift.height === tr.elevation ? hold.lift : {
+			heldElevation: tr.elevation,
+			height: 0
+		};
+		const height = Math.max(0, this._terrainHeightAboveCamera(tr) + lift.height);
+		if (height !== lift.height) tr.setElevation(lift.heldElevation + height);
 		hold.lift = height > 0 ? {
-			liftedElevation: tr.elevation,
-			liftHeight: height
+			heldElevation: lift.heldElevation,
+			height
 		} : null;
 		return tr;
 	}
 	/**
 	* @internal
 	* Where the camera is inside the terrain, re-solves pitch and zoom on a copy of the transform so the camera sits
-	* above it at the same ground position, still looking at the same center, and the transform the update edits keeps
-	* what it asked for; over mercator terrain high enough that its near clipping plane clears the terrain too. Without
+	* above it at the same ground position, still looking at the same center at the same elevation, and the transform
+	* the update edits keeps what it asked for; over mercator terrain high enough that its near clipping plane clears the terrain too. Without
 	* terrain the camera is kept above sea level, which only needs checking where the center elevation is negative or
-	* the pitch passes 90 degrees.
+	* the pitch passes 90 degrees. On a globe the camera is left where it is.
 	* @param tr - the transform the camera update edits
 	* @returns `tr` while the camera is clear, else the corrected copy
 	*/
-	_raiseCameraAboveTerrain(tr) {
-		if (!this.terrain && tr.elevation >= 0 && tr.pitch <= 90) return tr;
+	_raiseCameraByPitchAndZoom(tr) {
+		if (!this.terrain && tr.elevation >= 0 && tr.pitch <= 90 || tr.getClippingPlane()) return tr;
 		const cameraLngLat = tr.getCameraLngLat();
 		let height = this.terrain ? this._terrainHeightAboveCamera(tr) : -tr.getCameraAltitude();
 		if (height <= 0) return tr;
@@ -23552,16 +23625,16 @@ var Camera = class extends Evented {
 	* is, so a zoom toward rising terrain slows down before it instead of running into it. Farther terrain is followed
 	* only by less than the frame zooms in, so the zoom keeps going in and speeds up gradually; a center ray that slips
 	* over a crest onto terrain far behind it, and terrain so near that the zoom passes maxZoom, which would move the
-	* camera back, are left to the gesture's end, as is everything with the center not clamped to the ground. On a
-	* globe drawn as a globe the re-solve does nothing.
+	* camera back, are left to the gesture's end, as is everything with the center not clamped to the ground, and a
+	* globe.
 	* @param tr - the requested camera state
 	* @param zoomDelta - how far the frame zooms in
 	*/
 	moveCenterOntoTerrain(tr, zoomDelta) {
-		if (!this.terrain || !this.getCenterClampedToGround()) return;
+		if (!this.terrain || !this.getCenterClampedToGround() || tr.getClippingPlane()) return;
 		const { center, elevation, zoom } = tr;
 		tr.recalculateZoomAndCenter(this.terrain);
-		if (!(tr.zoom > zoom - zoomDelta && tr.zoom < tr.maxZoom) || Math.abs(this.terrain.getElevationForLngLat(tr.center, tr) - tr.elevation) >= 1) {
+		if (!(tr.zoom > zoom - zoomDelta && tr.zoom < tr.maxZoom) || Math.abs(this.terrain.getElevationForLngLat(tr.center, tr) - tr.elevation) >= MAX_CENTER_OFF_TERRAIN_M) {
 			tr.setZoom(zoom);
 			tr.setCenter(center);
 			tr.setElevation(elevation);
@@ -23569,16 +23642,13 @@ var Camera = class extends Evented {
 	}
 	/**
 	* @internal
-	* Called after the camera is done being manipulated. The transform first takes the projection transition the map
-	* draws at its zoom, since a copy of a globe's transform keeps the one it was copied under and would measure that
-	* projection; a hold on the center elevation takes DEM data that landed, see {@link ElevationHold.take}; then the
-	* camera is kept above the terrain, see {@link Camera._keepCameraAboveTerrain};
+	* Called after the camera is done being manipulated. A hold on the center elevation takes DEM data that landed, see
+	* {@link ElevationHold.take}; then the camera is kept above the terrain, see {@link Camera._keepCameraAboveTerrain};
 	* `transformCameraUpdate`, if present, proposes its changes on a copy, and the "approved" result is applied to the
 	* rendered transform.
 	* @param tr - the requested camera end state
 	*/
 	applyUpdatedTransform(tr) {
-		if (this._projectionTransitionAt && tr !== this.transform) tr.setTransitionState(this._projectionTransitionAt(tr.zoom));
 		this._takeLandedElevation(tr);
 		const corrected = this._keepCameraAboveTerrain(tr);
 		if (!this.transformCameraUpdate) {
@@ -23593,7 +23663,7 @@ var Camera = class extends Evented {
 		if (roll !== void 0) nextTransform.setRoll(roll);
 		if (pitch !== void 0) nextTransform.setPitch(pitch);
 		if (bearing !== void 0) nextTransform.setBearing(bearing);
-		this.transform.apply(elevation === void 0 ? nextTransform : this._raiseCameraAboveTerrain(nextTransform), false);
+		this.transform.apply(elevation === void 0 ? nextTransform : this._raiseCameraByPitchAndZoom(nextTransform), false);
 	}
 	/**
 	* @internal
@@ -24369,6 +24439,10 @@ var Terrain = class {
 			this._fbo.destroy();
 			this._fbo = null;
 		}
+		if (this._heightMapFbo) {
+			this._heightMapFbo.destroy();
+			this._heightMapFbo = null;
+		}
 		if (this._fboDepthTexture) {
 			this._fboDepthTexture.destroy();
 			this._fboDepthTexture = null;
@@ -24589,6 +24663,16 @@ var Terrain = class {
 		return this._fbo;
 	}
 	/**
+	* get the framebuffer that draws the height map into a texture of a custom layer
+	* @param texture - the texture to draw into
+	* @returns the frame buffer
+	*/
+	getHeightMapFramebuffer(texture) {
+		this._heightMapFbo ||= this.painter.context.createFramebuffer(1, 1, false, false);
+		this._heightMapFbo.colorAttachment.set(texture);
+		return this._heightMapFbo;
+	}
+	/**
 	* create a regular mesh which will be used by all terrain-tiles
 	* @returns the created regular mesh
 	*/
@@ -24747,6 +24831,20 @@ const LAYERS_TO_TEXTURES = {
 	"color-relief": true
 };
 /**
+* Returns the key under which a tile keeps the fingerprint of the layer, which is the layer's source, or its id for a custom layer.
+*/
+function rttFingerprintKey(layer) {
+	return isCustomStyleLayer(layer) ? `custom-layer:${layer.id}` : layer.source;
+}
+/**
+* Whether the layer is drawn into the terrain tiles' textures rather than onto the map: the layer types above, and
+* custom layers that implement `renderToTerrainTile`.
+*/
+function isRenderedToTexture(layer) {
+	if (isCustomStyleLayer(layer)) return layer.implementation.renderToTerrainTile !== void 0;
+	return LAYERS_TO_TEXTURES[layer.type] === true;
+}
+/**
 * @internal
 * Renders RTT-eligible layers into per-tile cached textures, then drapes
 * them onto the terrain mesh. Slots live on each Tile so their lifetime
@@ -24776,7 +24874,7 @@ var RenderToTexture = class {
 		const zoomChanged = zoom !== this._lastPrepareZoom;
 		this._lastPrepareZoom = zoom;
 		this._stacks = [];
-		this._prevType = null;
+		this._prevRenderedToTexture = false;
 		this._rttTiles = [];
 		this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
 		this._renderableLayerIds = style._order.filter((id) => !style._layers[id].isHidden(zoom));
@@ -24807,6 +24905,14 @@ var RenderToTexture = class {
 			const fingerprints = this._rttFingerprints[sourceId];
 			const revision = tileManager.getState().revision;
 			for (const key in coordsAscending) fingerprints[key] = new RTTFingerprint(coordsAscending[key], revision, zoom, visibleLayerIds);
+		}
+		for (const layerId of this._renderableLayerIds) {
+			const layer = style._layers[layerId];
+			if (!isCustomStyleLayer(layer) || !isRenderedToTexture(layer)) continue;
+			const revision = layer.implementation.terrainTileRevision ?? 0;
+			const fingerprints = {};
+			for (const tile of this._renderableTiles) fingerprints[tile.tileID.key] = new RTTFingerprint([tile.tileID], revision, zoom, visibleLayerIds);
+			this._rttFingerprints[rttFingerprintKey(layer)] = fingerprints;
 		}
 		this.needsFollowUpFrame = false;
 		const moving = zoomChanged || isMoving;
@@ -24849,17 +24955,17 @@ var RenderToTexture = class {
 	*/
 	renderLayer(layer, frameRenderContext) {
 		if (layer.isHidden(frameRenderContext.transform.zoom)) return false;
-		const type = layer.type;
+		const renderedToTexture = isRenderedToTexture(layer);
 		const painter = this.painter;
 		const isLastLayer = this._renderableLayerIds[this._renderableLayerIds.length - 1] === layer.id;
-		if (LAYERS_TO_TEXTURES[type]) {
-			if (!this._prevType || !LAYERS_TO_TEXTURES[this._prevType]) this._stacks.push([]);
-			this._prevType = type;
+		if (renderedToTexture) {
+			if (!this._prevRenderedToTexture) this._stacks.push([]);
+			this._prevRenderedToTexture = true;
 			this._stacks[this._stacks.length - 1].push(layer.id);
 			if (!isLastLayer) return true;
 		}
-		if (LAYERS_TO_TEXTURES[this._prevType] || LAYERS_TO_TEXTURES[type] && isLastLayer) {
-			this._prevType = type;
+		if (this._prevRenderedToTexture || renderedToTexture && isLastLayer) {
+			this._prevRenderedToTexture = renderedToTexture;
 			const stack = this._stacks.length - 1, layers = this._stacks[stack] || [];
 			frameRenderContext.isRenderingToTexture = true;
 			setFrameUniformWorldSize(painter.context.frameUniformBuffer, this.rttSize, this.rttSize);
@@ -24884,7 +24990,8 @@ var RenderToTexture = class {
 					]);
 					frameRenderContext.renderTileClippingMasks(layer, coords);
 					painter.renderLayer(painter, painter.style.tileManagers[layer.source], layer, coords, frameRenderContext);
-					if (layer.source) tile.rttFingerprint[layer.source] = this._rttFingerprints[layer.source][tile.tileID.key];
+					const fingerprintKey = rttFingerprintKey(layer);
+					if (fingerprintKey) tile.rttFingerprint[fingerprintKey] = this._rttFingerprints[fingerprintKey][tile.tileID.key];
 				}
 				obj.texture.generateMipmap();
 			}
@@ -24892,7 +24999,7 @@ var RenderToTexture = class {
 			setFrameUniformWorldSize(painter.context.frameUniformBuffer, painter.context.gl.drawingBufferWidth, painter.context.gl.drawingBufferHeight);
 			drawTerrain(this.painter, this.terrain, this._rttTiles, frameRenderContext);
 			this._rttTiles = [];
-			return LAYERS_TO_TEXTURES[type];
+			return renderedToTexture;
 		}
 		return false;
 	}
@@ -25127,8 +25234,7 @@ var Map$1 = class extends Evented {
 			requestRenderFrame: (callback) => this._requestRenderFrame(callback),
 			cancelRenderFrame: (id) => this._cancelRenderFrame(id),
 			transformCameraUpdate: resolvedOptions.transformCameraUpdate,
-			stopHandlers: () => this._handlers?.stop(false),
-			projectionTransitionAt: (zoom) => this.style?.projection ? this.style.projection.transitionStateAt(zoom) : 0
+			stopHandlers: () => this._handlers?.stop(false)
 		});
 		this._camera.setEventedParent(this);
 		this._interactive = resolvedOptions.interactive;
