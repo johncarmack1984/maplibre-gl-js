@@ -1,10 +1,11 @@
 import Point from '@mapbox/point-geometry';
-import {extend, wrap, defaultEasing, pick, evaluateZoomSnap} from '../util/util.ts';
+import {extend, wrap, defaultEasing, pick, evaluateZoomSnap, lerp, zoomScale} from '../util/util.ts';
 import {interpolates} from '@maplibre/maplibre-gl-style-spec';
 import {browser} from '../util/browser.ts';
 import {now} from '../util/time_control.ts';
 import {LngLat} from '../geo/lng_lat.ts';
 import {LngLatBounds} from '../geo/lng_lat_bounds.ts';
+import {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
 import {Evented} from '../util/evented.ts';
 import {MapMovementEvent} from './events.ts';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
@@ -47,6 +48,13 @@ const MAX_CAMERA_RAISES = 3;
  * crest the ray slipped over, and the frame keeps the held center instead.
  */
 const MAX_CENTER_OFF_TERRAIN_M = 1;
+
+/**
+ * How far the drawn terrain may reach above the maxZoom point on the center ray, see
+ * {@link Camera._terrainHeightAboveMaxZoomCenter}, and the point still count as clear: a center on the ground at maxZoom
+ * is that point, and two reads of the same surface under it differ by rounding.
+ */
+const MAX_ZOOM_POINT_CLEARANCE_M = 0.01;
 
 /**
  * Options common to {@link Map.jumpTo}, {@link Map.easeTo}, and {@link Map.flyTo}, controlling the desired location,
@@ -340,19 +348,28 @@ class ElevationHold {
      */
     private _dem: 'loaded' | 'awaiting' | 'taken';
     /**
-     * While {@link Camera._keepCameraAboveTerrain} has lifted the camera out of the terrain: the elevation the gesture
-     * holds and how far above it the camera was lifted, so later frames can lower it again as the terrain allows and
-     * tell the lifted elevation from one a take set anew, which carries no lift; null while nothing is lifted.
+     * While {@link Camera._keepCameraAboveTerrain} has lifted the held elevation: the elevation held and how far above
+     * it the camera was lifted, so later frames can lower it again as the terrain allows and tell the lifted elevation
+     * from one a take set anew, which carries no lift; null while nothing is lifted.
      */
     lift: {heldElevation: number; height: number} | null = null;
+    /**
+     * Whether {@link Camera._keepCameraAboveTerrain} keeps the drawn terrain off the maxZoom point on the center ray, see
+     * {@link Camera._terrainHeightAboveMaxZoomCenter}: from the start of a hold that starts with the point clear, as on
+     * the ground at rest, or from the first frame it is clear. A hold that starts with terrain over the point, as behind
+     * a crest, leaves it there.
+     */
+    keepsMaxZoomPointClear: boolean;
     private _terrainChanged = false;
 
     /**
      * @param holder - who holds the elevation
      * @param startedWithoutDem - whether the hold started without DEM data under the center, and so waits for it
+     * @param maxZoomPointClear - whether the maxZoom point is clear of drawn terrain when the hold starts
      */
-    constructor(readonly holder: ElevationHolder, startedWithoutDem: boolean) {
+    constructor(readonly holder: ElevationHolder, startedWithoutDem: boolean, maxZoomPointClear: boolean) {
         this._dem = startedWithoutDem ? 'awaiting' : 'loaded';
+        this.keepsMaxZoomPointClear = maxZoomPointClear;
     }
 
     /** Whether the hold waited for DEM data under the center and took the data of the tile there. */
@@ -1063,7 +1080,8 @@ export class Camera extends Evented<MapEventType> {
     holdElevation(tr: ITransform, holder: ElevationHolder): void {
         this.elevationFreeze = true;
         const startedWithoutDem = !!this.terrain && this.getCenterClampedToGround() && !this.terrain.hasElevationForLngLat(tr.center, tr);
-        this._elevationHold = new ElevationHold(holder, startedWithoutDem);
+        const reach = this.terrain ? this._terrainHeightAboveMaxZoomCenter(tr) : undefined;
+        this._elevationHold = new ElevationHold(holder, startedWithoutDem, reach !== undefined && reach <= MAX_ZOOM_POINT_CLEARANCE_M);
     }
 
     /**
@@ -1145,26 +1163,34 @@ export class Camera extends Evented<MapEventType> {
 
     /**
      * @internal
-     * Keeps the camera above the terrain for a camera update. While a gesture holds the center elevation over mercator
-     * terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is lifted on the
-     * given transform just far enough that the camera and its near clipping plane clear the terrain, and lowered again
-     * as the terrain allows, so the gesture keeps its pitch and zoom. Any other camera update keeps its center elevation
-     * and {@link Camera._raiseCameraByPitchAndZoom} moves the camera instead.
+     * Keeps the camera above the terrain for a camera update. While a gesture or an animation holds the center elevation
+     * over mercator terrain, below a pitch of 90 degrees with the center clamped to the ground, the held elevation is
+     * lifted on the given transform just far enough that the drawn terrain stays off the maxZoom point on the center ray
+     * once the hold keeps it clear, see {@link ElevationHold.keepsMaxZoomPointClear}, and for a gesture that the camera
+     * and its near clipping plane clear the terrain; the lift is lowered again as the terrain allows, so the hold keeps
+     * its pitch and zoom. The camera of an animation, and of any camera update without a hold, is kept above the
+     * terrain by {@link Camera._raiseCameraByPitchAndZoom} instead.
      * @param tr - the transform the camera update edits
      * @returns the transform to render: `tr`, or its corrected copy
      */
     _keepCameraAboveTerrain(tr: ITransform): ITransform {
         const hold = this._elevationHold;
-        if (!this.terrain || hold?.holder !== 'gesture' || tr.pitch >= 90 || !this.getCenterClampedToGround() || tr.getClippingPlane()) {
+        if (!this.terrain || !hold || tr.pitch >= 90 || !this.getCenterClampedToGround() || tr.getClippingPlane()) {
             return this._raiseCameraByPitchAndZoom(tr);
         }
+        const isGesture = hold.holder === 'gesture';
         const lift = hold.lift && hold.lift.heldElevation + hold.lift.height === tr.elevation ? hold.lift : {heldElevation: tr.elevation, height: 0};
-        const height = Math.max(0, this._terrainHeightAboveCamera(tr) + lift.height);
+        const reach = this._terrainHeightAboveMaxZoomCenter(tr);
+        if (reach !== undefined && reach <= MAX_ZOOM_POINT_CLEARANCE_M) {
+            hold.keepsMaxZoomPointClear = true;
+        }
+        const maxZoomReach = hold.keepsMaxZoomPointClear && reach !== undefined ? reach : -Infinity;
+        const height = Math.max(0, (isGesture ? Math.max(this._terrainHeightAboveCamera(tr), maxZoomReach) : maxZoomReach) + lift.height);
         if (height !== lift.height) {
             tr.setElevation(lift.heldElevation + height);
         }
         hold.lift = height > 0 ? {heldElevation: lift.heldElevation, height} : null;
-        return tr;
+        return isGesture ? tr : this._raiseCameraByPitchAndZoom(tr);
     }
 
     /**
@@ -1227,6 +1253,27 @@ export class Camera extends Evented<MapEventType> {
             }
         }
         return height;
+    }
+
+    /**
+     * @internal
+     * How far the drawn terrain reaches above the maxZoom point, the point on the center ray as far from the camera as
+     * the center is at maxZoom, in meters; zero or less while the point is clear, undefined where no terrain is drawn
+     * under it. A hold's end puts the center onto the drawn terrain the center ray meets, with the camera where it is,
+     * see {@link Camera.putCenterBackOnTerrain}; with terrain over the point that is nearer than maxZoom allows, and
+     * `setZoom` clamps the zoom it needs by moving the camera back.
+     * @param tr - the transform whose center ray is checked
+     */
+    _terrainHeightAboveMaxZoomCenter(tr: ITransform): number | undefined {
+        const index = this.terrain.getCoverageIndex();
+        if (!index) {
+            return undefined;
+        }
+        const camera = MercatorCoordinate.fromLngLat(tr.getCameraLngLat());
+        const center = MercatorCoordinate.fromLngLat(tr.center);
+        const distanceFractionAtMaxZoom = zoomScale(tr.zoom - tr.maxZoom);
+        const sample = sampleAt(index, this.terrain.exaggeration, lerp(camera.x, center.x, distanceFractionAtMaxZoom), lerp(camera.y, center.y, distanceFractionAtMaxZoom));
+        return sample.covered ? sample.elevation - lerp(tr.getCameraAltitude(), tr.elevation, distanceFractionAtMaxZoom) : undefined;
     }
 
     /**
