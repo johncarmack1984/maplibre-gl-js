@@ -10,7 +10,7 @@
 </head>
 <body>
 <div id="map"></div>
-<div id="panel">flying...</div>
+<div id="panel">Loading...</div>
 <script type="module">
     const params = new URLSearchParams(location.search);
     const delay = +(params.get('delay') ?? 1500);
@@ -53,11 +53,29 @@
         return {data: buffer.slice(0)};
     });
 
+    // A grid every 0.25 degrees, draped on the terrain, so the camera's motion and height read on screen.
+    const grid = {type: 'FeatureCollection', features: []};
+    for (let lng = 9.5; lng <= 15.5; lng += 0.25) grid.features.push({type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: Array.from({length: 41}, (_, i) => [lng, 46 + i * 0.05])}});
+    for (let lat = 46; lat <= 48; lat += 0.25) grid.features.push({type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: Array.from({length: 121}, (_, i) => [9.5 + i * 0.05, lat])}});
+
+    const dem = {type: 'raster-dem', tiles: ['slope://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 512, maxzoom: 14};
     const map = new maplibregl.Map({
         container: 'map', center: variant === 'loaded' ? [10.05, 47] : [10.5, 47], zoom: 13, pitch: 60,
-        style: {version: 8, sources: {dem: {type: 'raster-dem', tiles: ['slope://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 512, maxzoom: 14}},
-            layers: [{id: 'background', type: 'background', paint: {'background-color': '#ddd'}}]}
+        style: {
+            version: 8,
+            sources: {dem, relief: {...dem}, grid: {type: 'geojson', data: grid}},
+            layers: [
+                {id: 'background', type: 'background', paint: {'background-color': '#cfe3b0'}},
+                {id: 'relief', type: 'color-relief', source: 'relief', paint: {'color-relief-color': ['interpolate', ['linear'], ['elevation'], 0, '#cfe3b0', 560, '#a0703f']}},
+                {id: 'grid', type: 'line', source: 'grid', paint: {'line-color': 'rgba(0, 0, 0, 0.35)', 'line-width': 1}}
+            ]
+        }
     });
+    const panelElement = document.getElementById('panel');
+    const scenario = variant === 'loaded' ?
+        `${build}: flying from a 560 m plateau at 10.05 E to another at 15 E, with the terrain loaded at the start` :
+        `${build}: flying from sea level at 10.5 E to a 560 m plateau at 15 E, with terrain switched on right before`;
+    panelElement.textContent = `${scenario}\nDEM tiles arrive ${delay} ms late. Loading...`;
     await map.once('load');
 
     const samples = [];
@@ -68,7 +86,16 @@
         const center = map.getCenter();
         return {clearance: transform.getCameraAltitude() - ground(camera.lng), centerError: map.getCenterElevation() - ground(center.lng)};
     };
-    map.on('render', () => { if (flying) samples.push(sample()); });
+    map.on('render', () => {
+        if (!flying) return;
+        const now = sample();
+        samples.push(now);
+        const lowest = Math.min(...samples.map(s => s.clearance));
+        panelElement.textContent = `${scenario}\nDEM tiles arrive ${delay} ms late.\n` +
+            `camera above the ground now   ${Math.round(now.clearance)} m\n` +
+            `lowest so far                 ${Math.round(lowest)} m (negative: under the ground)\n` +
+            `center elevation off by       ${Math.round(now.centerError)} m`;
+    });
 
     if (variant === 'loaded') {
         map.setTerrain({source: 'dem'});
@@ -87,7 +114,7 @@
     map.triggerRepaint();
     await map.once('render');
     const landed = sample();
-    const panel = (r) => [`${build}, ${variant}: DEM ${delay} ms late, ${flightDuration} ms flight to zoom ${endZoom}`,
+    const panel = (r) => [scenario, `DEM tiles ${delay} ms late, ${flightDuration} ms flight to zoom ${endZoom}. Reload to fly again.`,
         `center elevation at the start    ${r.startElevation} m`,
         `lowest camera clearance          ${r.minClearance} m (negative: below the ground)`,
         `worst center elevation error     ${r.minCenterError} m`,
