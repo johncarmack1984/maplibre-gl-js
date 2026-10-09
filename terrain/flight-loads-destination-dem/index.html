@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>flyTo right after terrain is switched on</title>
+<style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 2em auto; max-width: 760px; padding: 0 16px; }
+    code { background: #eee; padding: 1px 4px; border-radius: 3px; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 4px 10px; text-align: left; }
+</style>
+</head>
+<body>
+<h1>flyTo right after terrain is switched on</h1>
+<p>Test pages for the flight reported on <a href="https://github.com/maplibre/maplibre-gl-js/pull/8590#issuecomment-6078814764">#8590</a>. The map sits at sea level at 10.5 E, terrain is switched on, and <code>flyTo</code> starts at once toward a 560 m slope at 15 E, zoom 17, pitch 60. Every DEM tile arrives the given delay after it is requested. Each link runs upstream main (<code>6d26435e5</code>) or the fix branch <code>john/flight-loads-destination-dem</code> (<code>c89eb4de5</code>), and the panel reports the lowest camera clearance above the ground and the worst center elevation error during the flight.</p>
+<table>
+<tr><th>DEM delay</th><th>flyTo at its default speed</th><th>3 s flyTo</th></tr>
+<tr><td>0 ms</td><td><a href="flyto.html?build=main&amp;delay=0">main</a> | <a href="flyto.html?build=branch&amp;delay=0">branch</a></td><td><a href="flyto.html?build=main&amp;delay=0&amp;duration=3000">main</a> | <a href="flyto.html?build=branch&amp;delay=0&amp;duration=3000">branch</a></td></tr>
+<tr><td>500 ms</td><td><a href="flyto.html?build=main&amp;delay=500">main</a> | <a href="flyto.html?build=branch&amp;delay=500">branch</a></td><td><a href="flyto.html?build=main&amp;delay=500&amp;duration=3000">main</a> | <a href="flyto.html?build=branch&amp;delay=500&amp;duration=3000">branch</a></td></tr>
+<tr><td>1000 ms</td><td><a href="flyto.html?build=main&amp;delay=1000">main</a> | <a href="flyto.html?build=branch&amp;delay=1000">branch</a></td><td><a href="flyto.html?build=main&amp;delay=1000&amp;duration=3000">main</a> | <a href="flyto.html?build=branch&amp;delay=1000&amp;duration=3000">branch</a></td></tr>
+<tr><td>1500 ms</td><td><a href="flyto.html?build=main&amp;delay=1500">main</a> | <a href="flyto.html?build=branch&amp;delay=1500">branch</a></td><td><a href="flyto.html?build=main&amp;delay=1500&amp;duration=3000">main</a> | <a href="flyto.html?build=branch&amp;delay=1500&amp;duration=3000">branch</a></td></tr>
+</table>
+<p>The page also takes <code>zoom</code> and <code>ground=smooth</code> (a slope that eases up from 14.7 E to 15.1 E instead of rising over the last 0.05 degrees), for example <code>flyto.html?build=branch&amp;delay=1000&amp;ground=smooth</code>.</p>
+<h2>The branch build</h2>
+<p>As an npm package: <code>npm install https://johncarmack1984.github.io/maplibre-gl-js/terrain/flight-loads-destination-dem/maplibre-gl-flight-loads-destination-dem.tgz</code> (version 6.13.0 plus the fix). The ES module files on their own: <a href="branch/maplibre-gl.mjs">maplibre-gl.mjs</a> and <a href="branch/maplibre-gl-worker.mjs">maplibre-gl-worker.mjs</a> (kept side by side), and <a href="branch/maplibre-gl.css">maplibre-gl.css</a>.</p>
+</body>
+</html>

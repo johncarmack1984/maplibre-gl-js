@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>flyTo right after terrain is switched on</title>
+<style>
+    html, body, #map { margin: 0; height: 100%; }
+    #panel { position: absolute; top: 10px; left: 10px; z-index: 1; background: rgba(255, 255, 255, 0.92); font: 13px/1.5 monospace; padding: 8px 10px; border-radius: 4px; white-space: pre; max-width: calc(100% - 40px); overflow-x: auto; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">Loading...</div>
+<script type="module">
+    const params = new URLSearchParams(location.search);
+    const delay = +(params.get('delay') ?? 1500);
+    const endZoom = +(params.get('zoom') ?? 17);
+    const durationParam = params.get('duration');
+    const flightDuration = durationParam && durationParam !== 'auto' ? +durationParam : undefined;
+    const smoothGround = params.get('ground') === 'smooth';
+    const build = params.get('build') === 'branch' ? 'branch' : 'main';
+    const maplibregl = await import(`./${build}/maplibre-gl.mjs`);
+
+    // The ground: sea level, then a slope up to a 560 m plateau whose edge is the flight's destination at 15 E.
+    // step: the slope rises over the last 0.05 degrees before 15 E. smooth: it eases up from 14.7 E to 15.1 E.
+    const smoothstep = (t) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c); };
+    const ground = smoothGround ?
+        (lng) => 560 * smoothstep((lng - 14.7) / 0.4) :
+        (lng) => 560 * Math.min(1, Math.max(0, (lng - 14.95) / 0.05));
+
+    // The ground depends only on lng, so every tile with the same z and x is the same image: make each one once.
+    const tileImages = new Map();
+    async function tileImage(z, x) {
+        const size = 512;
+        const canvas = new OffscreenCanvas(size, size);
+        const context = canvas.getContext('2d');
+        const image = context.createImageData(size, size);
+        const tiles = 2 ** z;
+        for (let px = 0; px < size; px++) {
+            const lng = ((x + (px + 0.5) / size) / tiles) * 360 - 180;
+            const value = ground(lng) + 32768;
+            const r = Math.floor(value / 256), g = Math.floor(value % 256), b = Math.floor((value - Math.floor(value)) * 256);
+            for (let py = 0; py < size; py++) {
+                const i = (py * size + px) * 4;
+                image.data[i] = r; image.data[i + 1] = g; image.data[i + 2] = b; image.data[i + 3] = 255;
+            }
+        }
+        context.putImageData(image, 0, 0);
+        return (await canvas.convertToBlob({type: 'image/png'})).arrayBuffer();
+    }
+    // Every DEM tile arrives `delay` ms after it is requested.
+    maplibregl.addProtocol('slope', async (request) => {
+        const [z, x] = request.url.replace('slope://', '').split('/').map(Number);
+        const key = z + '/' + x;
+        if (!tileImages.has(key)) tileImages.set(key, tileImage(z, x));
+        const [buffer] = await Promise.all([tileImages.get(key), new Promise(resolve => setTimeout(resolve, delay))]);
+        return {data: buffer.slice(0)};
+    });
+
+    // A grid every 0.25 degrees, draped on the terrain, so the camera's motion and height read on screen.
+    const grid = {type: 'FeatureCollection', features: []};
+    for (let lng = 9.5; lng <= 15.5; lng += 0.25) grid.features.push({type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: Array.from({length: 41}, (_, i) => [lng, 46 + i * 0.05])}});
+    for (let lat = 46; lat <= 48; lat += 0.25) grid.features.push({type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: Array.from({length: 121}, (_, i) => [9.5 + i * 0.05, lat])}});
+
+    const dem = {type: 'raster-dem', tiles: ['slope://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 512, maxzoom: 14};
+    const map = new maplibregl.Map({
+        container: 'map', center: [10.5, 47], zoom: 13, pitch: 60,
+        style: {
+            version: 8,
+            sources: {dem, relief: {...dem}, grid: {type: 'geojson', data: grid}},
+            layers: [
+                {id: 'background', type: 'background', paint: {'background-color': '#cfe3b0'}},
+                {id: 'relief', type: 'color-relief', source: 'relief', paint: {'color-relief-color': ['interpolate', ['linear'], ['elevation'], 0, '#cfe3b0', 560, '#a0703f']}},
+                {id: 'grid', type: 'line', source: 'grid', paint: {'line-color': 'rgba(0, 0, 0, 0.35)', 'line-width': 1}}
+            ]
+        }
+    });
+    const panelElement = document.getElementById('panel');
+    const flight = flightDuration ? `${flightDuration} ms flight` : 'flight at the default speed';
+    const scenario = `${build}: terrain switched on at sea level (10.5 E), then a ${flight} to a 560 m slope at 15 E, zoom ${endZoom}.\n` +
+        `Every DEM tile arrives ${delay} ms after it is requested.`;
+    panelElement.textContent = `${scenario}\nLoading...`;
+    await map.once('load');
+
+    const samples = [];
+    let flying = false;
+    const sample = () => {
+        const transform = map._camera.transform;
+        const camera = transform.getCameraLngLat();
+        const center = map.getCenter();
+        return {clearance: transform.getCameraAltitude() - ground(camera.lng), centerError: map.getCenterElevation() - ground(center.lng)};
+    };
+    map.on('render', () => {
+        if (!flying) return;
+        const now = sample();
+        samples.push(now);
+        const lowest = Math.min(...samples.map(s => s.clearance));
+        panelElement.textContent = `${scenario}\n` +
+            `camera above the ground now   ${Math.round(now.clearance)} m\n` +
+            `lowest so far                 ${Math.round(lowest)} m (negative: under the ground)\n` +
+            `center elevation off by       ${Math.round(now.centerError)} m`;
+    });
+
+    map.setTerrain({source: 'dem'});
+    flying = true;
+    const start = performance.now();
+    map.flyTo({center: [15.0, 47.0], zoom: endZoom, pitch: 60, duration: flightDuration});
+    await map.once('moveend');
+    flying = false;
+    const duration = performance.now() - start;
+    await new Promise(resolve => setTimeout(resolve, 2 * delay + 2000));
+    map.triggerRepaint();
+    await map.once('render');
+    const landed = sample();
+    window.result = {
+        duration: Math.round(duration), frames: samples.length,
+        minClearance: Math.round(Math.min(...samples.map(s => s.clearance))),
+        minCenterError: Math.round(Math.min(...samples.map(s => s.centerError))),
+        landedClearance: Math.round(landed.clearance), landedCenterError: Math.round(landed.centerError)
+    };
+    const r = window.result;
+    panelElement.textContent = [scenario,
+        `the flight took                  ${r.duration} ms`,
+        `lowest camera clearance          ${r.minClearance} m (negative: under the ground)`,
+        `worst center elevation error     ${r.minCenterError} m`,
+        `after landing                    clearance ${r.landedClearance} m, center error ${r.landedCenterError} m`,
+        'Reload to fly again.'].join('\n');
+</script>
+</body>
+</html>
