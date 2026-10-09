@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Center elevation while the DEM loads</title>
+<style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 2em auto; max-width: 760px; padding: 0 16px; }
+    code { background: #eee; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>The center elevation while the DEM under a new center loads</h1>
+<p>Test pages for <a href="https://github.com/maplibre/maplibre-gl-js/issues/8549">#8549</a>. Each runs on upstream main (<code>6d26435e5</code>) or on the fix branch <code>john/center-elevation-waits-for-dem</code> (<code>7be281aeb</code>).</p>
+<h2>jumpTo onto Mont Blanc, every DEM tile 3 s late</h2>
+<p><a href="jumpto.html?build=main">main</a> | <a href="jumpto.html?build=branch">branch</a></p>
+<h2>flyTo between two 560 m plateaus 5 degrees apart, 3 s flight, DEM 1.5 s late</h2>
+<p>Terrain loaded before the flight: <a href="flyto.html?build=main&amp;variant=loaded">main</a> | <a href="flyto.html?build=branch&amp;variant=loaded">branch</a></p>
+<p>Terrain switched on right before the flight, from sea level: <a href="flyto.html?build=main&amp;variant=fresh">main</a> | <a href="flyto.html?build=branch&amp;variant=fresh">branch</a></p>
+<p>The rig takes <code>delay</code>, <code>duration</code> and <code>zoom</code> in the URL too, for example <code>flyto.html?build=branch&amp;variant=loaded&amp;delay=1000&amp;duration=2000&amp;zoom=16</code>.</p>
+<h2>The branch build</h2>
+<p><a href="branch/maplibre-gl.mjs">maplibre-gl.mjs</a> and <a href="branch/maplibre-gl-worker.mjs">maplibre-gl-worker.mjs</a> (kept side by side), and <a href="branch/maplibre-gl.css">maplibre-gl.css</a>.</p>
+</body>
+</html>
