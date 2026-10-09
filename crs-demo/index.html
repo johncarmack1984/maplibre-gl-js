@@ -22,7 +22,7 @@
 <div id="panel">
   <h1>Planar CRS demo — <a href="https://github.com/maplibre/maplibre-gl-js/issues/168">#168</a> branch</h1>
   <div>
-    <button data-demo="simple">simple (identity grid)</button>
+    <button data-demo="identity">identity (image plane)</button>
     <button data-demo="polar">EPSG:3413 polar (NASA GIBS)</button>
     <button data-demo="nz">EPSG:2193 NZ (LINZ)</button>
   </div>
@@ -37,11 +37,11 @@ import * as maplibregl from './maplibre-gl.mjs';
 proj4.defs('EPSG:3413', '+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs');
 proj4.defs('EPSG:2193', '+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
 
-function crs(name, tileMatrix) {
+function crs(name, tileMatrixSet) {
   return {
     name,
     projection: proj4('EPSG:4326', name),
-    tileMatrix,
+    tileMatrixSet,
   };
 }
 // NASA GIBS EPSG:3413 tile matrix set: one 8,388,608 m square at zoom 0 (GIBS "level 0" is our zoom 1).
@@ -65,10 +65,10 @@ const gibs = (layers) => `https://gibs.earthdata.nasa.gov/wms/epsg3413/best/wms.
 const linzKey = new URLSearchParams(location.search).get('linz');
 
 const demos = {
-  simple: {
-    note: 'The built-in <code>simple</code> CRS: coordinates are plain x/y, no latitude stretch. Drag, scroll-zoom, right-drag to rotate/pitch. The image is placed by its four corners in the same units as the markers.',
+  identity: {
+    note: 'The built-in <code>identity</code> projection: coordinates are plain x/y, no latitude stretch. Drag, scroll-zoom, right-drag to rotate/pitch. The image is placed by its four corners in the same units as the markers.',
     style: {
-      version: 8, projection: {type: 'simple'},
+      version: 8, projection: {type: 'identity'},
       sources: {
         grid: {type: 'image', url: gridImage(), coordinates: [[-60, 30], [60, 30], [60, -30], [-60, -30]]},
       },
