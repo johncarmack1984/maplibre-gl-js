@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Display GeoJSON in the Dutch national grid</title>
+    <meta property="og:description" content="Draw buildings that a national service returns in the map's EPSG:28992 CRS with dataProjection, with no projection handler in the workers." />
+    <meta property="og:category" content="Vector & GeoJSON" />
+    <meta property="og:created" content="2026-10-12" />
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='stylesheet' href='../../dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/proj4@2.15.0/dist/proj4.js'></script>
+
+    <style>
+        body { margin: 0; padding: 0; }
+        html, body, #map { height: 100%; }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<script type="module">
+    import * as maplibregl from '../../dist/maplibre-gl-dev.mjs';
+
+    // Amersfoort / RD New, the Dutch national grid.
+    const epsg28992 = '+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs';
+
+    maplibregl.addProjection({
+        name: 'EPSG:28992',
+        projection: proj4('EPSG:4326', epsg28992),
+        // PDOK's EPSG:28992 WMTS grid: level 0 is a single 256 px tile at 3440.64 m per pixel (880803.84 m wide)
+        // with its top-left corner at (-285401.92, 903401.92).
+        tileMatrixSet: {origin: [-285401.92, 903401.92], extentAtZoom0: 880803.84}
+    });
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            version: 8,
+            projection: {type: 'EPSG:28992'},
+            sources: {
+                'background': {
+                    type: 'raster',
+                    tiles: ['https://service.pdok.nl/kadaster/brt-achtergrondkaart/wmts/v2_0/grijs/EPSG:28992/{z}/{x}/{y}.png'],
+                    tileSize: 256,
+                    maxzoom: 14,
+                    attribution: '&copy; <a href="https://www.kadaster.nl/">Kadaster</a>'
+                },
+                // Buildings around Dam Square, which PDOK returns in EPSG:28992 meters when the request asks for it
+                // with `crs`. The coordinates are already in the map's projection, so the workers need no projection
+                // handler and the definition above needs no `wkt`.
+                'buildings': {
+                    type: 'geojson',
+                    data: 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items?f=json&limit=1000&bbox=4.888,52.371,4.896,52.375&crs=http://www.opengis.net/def/crs/EPSG/0/28992',
+                    dataProjection: 'EPSG:28992',
+                    attribution: '&copy; <a href="https://www.kadaster.nl/">Kadaster</a> BAG'
+                }
+            },
+            layers: [
+                {id: 'background', type: 'raster', source: 'background'},
+                {
+                    id: 'buildings',
+                    type: 'fill',
+                    source: 'buildings',
+                    paint: {'fill-color': '#e8590c', 'fill-opacity': 0.6, 'fill-outline-color': '#fff'}
+                }
+            ]
+        },
+        center: [4.892, 52.373],
+        zoom: 11
+    });
+    map.addControl(new maplibregl.NavigationControl());
+
+    // Queries return lng/lat, so popups and the rest of the API work unchanged.
+    map.on('click', 'buildings', (e) => {
+        new maplibregl.Popup().setLngLat(e.lngLat).setText(`Built in ${e.features[0].properties.bouwjaar}`).addTo(map);
+    });
+    map.on('mouseenter', 'buildings', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'buildings', () => { map.getCanvas().style.cursor = ''; });
+</script>
+</body>
+</html>
