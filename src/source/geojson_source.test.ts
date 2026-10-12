@@ -381,15 +381,20 @@ describe('GeoJSONSource in a registered projection', () => {
         projection: {forward: position => position, inverse: position => position},
         tileMatrixSet: {origin: [-1000, 1000], extentAtZoom0: 2000}
     };
+    const timesTenCrs: CRSDefinition = {
+        ...planarCrs,
+        projection: {forward: ([lng, lat]) => [lng * 10, lat * 10], inverse: ([x, y]) => [x / 10, y / 10]}
+    };
+    const pointAt45InTimesTenCrs: GeoJSON.Feature = {type: 'Feature', id: 1, properties: {}, geometry: {type: 'Point', coordinates: [450, 450]}};
 
     afterEach(() => {
         removeProjection(planarCrs.name);
         vi.restoreAllMocks();
     });
 
-    function loadSourceInProjection(definition: CRSDefinition) {
+    function loadSourceInProjection(definition: CRSDefinition, options: GeoJSONSourceOptions) {
         const sent: LoadGeoJSONParameters[] = [];
-        const source = new GeoJSONSource('id', {data: {}} as GeoJSONSourceOptions, wrapDispatcher({
+        const source = new GeoJSONSource('id', options, wrapDispatcher({
             sendAsync(message: ActorMessage<any>) {
                 sent.push(message.data);
                 return Promise.resolve({});
@@ -401,7 +406,7 @@ describe('GeoJSONSource in a registered projection', () => {
     }
 
     test('sends the built-in identity projection to the worker without a wkt', async () => {
-        const {source, sent} = loadSourceInProjection(identityCrs);
+        const {source, sent} = loadSourceInProjection(identityCrs, {data: {}} as GeoJSONSourceOptions);
         await waitForMetadataEvent(source);
 
         expect(sent[0].crs).toEqual({name: 'identity', wkt: undefined, tileMatrixSet: identityCrs.tileMatrixSet});
@@ -410,7 +415,7 @@ describe('GeoJSONSource in a registered projection', () => {
     test('sends a registered projection to the worker with its wkt', async () => {
         const definition = {...planarCrs, wkt: 'PROJCS["test"]'};
         addProjection(definition);
-        const {source, sent} = loadSourceInProjection(definition);
+        const {source, sent} = loadSourceInProjection(definition, {data: {}} as GeoJSONSourceOptions);
         await waitForMetadataEvent(source);
 
         expect(sent[0].crs).toEqual({name: 'EPSG:test', wkt: 'PROJCS["test"]', tileMatrixSet: planarCrs.tileMatrixSet});
@@ -419,11 +424,65 @@ describe('GeoJSONSource in a registered projection', () => {
     test('warns and sends no projection when a registered projection has no wkt', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         addProjection(planarCrs);
-        const {source, sent} = loadSourceInProjection(planarCrs);
+        const {source, sent} = loadSourceInProjection(planarCrs, {data: {}} as GeoJSONSourceOptions);
         await waitForMetadataEvent(source);
 
         expect(sent[0].crs).toBeUndefined();
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('the projection "EPSG:test" has no `wkt`'));
+    });
+
+    test('sends data whose dataProjection names the projection to the worker without the wkt', async () => {
+        const definition = {...planarCrs, wkt: 'PROJCS["test"]'};
+        addProjection(definition);
+        const {source, sent} = loadSourceInProjection(definition, {data: {}, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions);
+        await waitForMetadataEvent(source);
+
+        expect(sent[0].crs).toEqual({name: 'EPSG:test', wkt: undefined, tileMatrixSet: planarCrs.tileMatrixSet});
+    });
+
+    test('sends data whose dataProjection names a projection without a wkt to the worker', async () => {
+        addProjection(planarCrs);
+        const {source, sent} = loadSourceInProjection(planarCrs, {data: {}, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions);
+        await waitForMetadataEvent(source);
+
+        expect(sent[0].crs).toEqual({name: 'EPSG:test', wkt: undefined, tileMatrixSet: planarCrs.tileMatrixSet});
+    });
+
+    test('warns when dataProjection does not name the map\'s projection', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const definition = {...planarCrs, wkt: 'PROJCS["test"]'};
+        addProjection(definition);
+        const {source} = loadSourceInProjection(definition, {data: {}, dataProjection: 'EPSG:other'} as GeoJSONSourceOptions);
+        await waitForMetadataEvent(source);
+
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('`dataProjection` "EPSG:other" is not the map\'s registered projection'));
+    });
+
+    test('returns lng/lat bounds for data whose dataProjection names the projection', async () => {
+        addProjection(timesTenCrs);
+        const source = new GeoJSONSource('id', {data: pointAt45InTimesTenCrs, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = {style: {projection: new MercatorProjection(new CRSWorldCoordinateHelper(timesTenCrs))}} as any as Map;
+
+        const bounds = await source.getBounds();
+
+        expect(bounds.toArray()).toEqual([[expect.closeTo(45, 9), expect.closeTo(45, 9)], [expect.closeTo(45, 9), expect.closeTo(45, 9)]]);
+    });
+
+    test('reloads the tile that contains a feature a diff adds in the projection\'s own coordinates', async () => {
+        addProjection(timesTenCrs);
+        const source = new GeoJSONSource('id', {data: {type: 'FeatureCollection', features: []}, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        source.map = {style: {projection: new MercatorProjection(new CRSWorldCoordinateHelper(timesTenCrs))}} as any as Map;
+        const northEastQuarterTile = new Tile(new OverscaledTileID(1, 0, 1, 1, 0), source.tileSize);
+        northEastQuarterTile.state = 'loaded';
+        let shouldReloadTileOptions: GeoJSONSourceShouldReloadTileOptions = undefined;
+        source.on('data', (e) => {
+            if (e.shouldReloadTileOptions) {
+                shouldReloadTileOptions = e.shouldReloadTileOptions;
+            }
+        });
+        await source.updateData({add: [pointAt45InTimesTenCrs]});
+
+        expect(source.shouldReloadTile(northEastQuarterTile, shouldReloadTileOptions)).toBe(true);
     });
 });
 

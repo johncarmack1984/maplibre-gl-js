@@ -1,22 +1,28 @@
 import {describe, expect, test} from 'vitest';
-import {reprojectGeoJSONFromWorld, reprojectGeoJSONSourceDiffToWorld, reprojectGeoJSONToWorld} from './geojson_reproject.ts';
-import {CRSWorldCoordinateHelper, identityCrs} from '../geo/projection/crs.ts';
+import {reprojectGeoJSONFromCRSToLngLat, reprojectGeoJSONFromWorld, reprojectGeoJSONSourceDiffToWorld, reprojectGeoJSONToWorld} from './geojson_reproject.ts';
+import {CRSWorldCoordinateHelper, identityCrs, type CRSDefinition} from '../geo/projection/crs.ts';
 
 import type {GeoJSONSourceDiff} from '../source/geojson_source_diff.ts';
 
-function createIdentityHelper() {
-    return new CRSWorldCoordinateHelper(identityCrs);
-}
+/** A projection whose coordinates are lng/lat times ten, on a grid square from -1000 to 1000 on both axes. */
+const timesTenCrs: CRSDefinition = {
+    name: 'EPSG:test',
+    projection: {forward: ([lng, lat]) => [lng * 10, lat * 10], inverse: ([x, y]) => [x / 10, y / 10]},
+    tileMatrixSet: {origin: [-1000, 1000], extentAtZoom0: 2000}
+};
+
+/** Data already in the coordinates of {@link timesTenCrs}, so it needs no conversion. */
+const inTimesTenCrs: CRSDefinition = {...timesTenCrs, projection: identityCrs.projection};
 
 describe('reprojectGeoJSONToWorld', () => {
     test('moves an identity-CRS position to its world coordinates', () => {
         const point: GeoJSON.Point = {type: 'Point', coordinates: [45, 45]};
-        expect(reprojectGeoJSONToWorld(point, createIdentityHelper()).coordinates).toEqual([0.75, 0.25]);
+        expect(reprojectGeoJSONToWorld(point, identityCrs).coordinates).toEqual([0.75, 0.25]);
     });
 
     test('keeps the altitude and any further ordinates', () => {
         const point: GeoJSON.Point = {type: 'Point', coordinates: [0, 0, 123, 4]};
-        expect(reprojectGeoJSONToWorld(point, createIdentityHelper()).coordinates).toEqual([0.5, 0.5, 123, 4]);
+        expect(reprojectGeoJSONToWorld(point, identityCrs).coordinates).toEqual([0.5, 0.5, 123, 4]);
     });
 
     test('walks features, collections, nested geometries and geometry collections without mutating the input', () => {
@@ -45,7 +51,7 @@ describe('reprojectGeoJSONToWorld', () => {
         };
         const copy = JSON.parse(JSON.stringify(data));
 
-        const result = reprojectGeoJSONToWorld(data, createIdentityHelper());
+        const result = reprojectGeoJSONToWorld(data, identityCrs);
 
         expect(data).toEqual(copy);
         expect(result).not.toBe(data);
@@ -56,6 +62,13 @@ describe('reprojectGeoJSONToWorld', () => {
         expect(polygon.coordinates[0][2]).toEqual([0.75, 0.25]);
         const collection = result.features[1].geometry as GeoJSON.GeometryCollection;
         expect((collection.geometries[1] as GeoJSON.Point).coordinates).toEqual([0.75, 0.5]);
+    });
+});
+
+describe('reprojectGeoJSONToWorld for data in the projection\'s own coordinates', () => {
+    test('places a position by the tile matrix set alone', () => {
+        const point: GeoJSON.Point = {type: 'Point', coordinates: [500, 500]};
+        expect(reprojectGeoJSONToWorld(point, inTimesTenCrs).coordinates).toEqual([0.75, 0.25]);
     });
 });
 
@@ -72,7 +85,7 @@ describe('reprojectGeoJSONFromWorld', () => {
                 ]
             }
         };
-        const roundTripped = reprojectGeoJSONFromWorld(reprojectGeoJSONToWorld(feature, createIdentityHelper()), createIdentityHelper());
+        const roundTripped = reprojectGeoJSONFromWorld(reprojectGeoJSONToWorld(feature, identityCrs), identityCrs);
         const geometries = (roundTripped.geometry as GeoJSON.GeometryCollection).geometries;
         expect((geometries[0] as GeoJSON.Point).coordinates).toEqual([expect.closeTo(-30, 9), expect.closeTo(-30, 9), 500]);
         expect((geometries[1] as GeoJSON.MultiPolygon).coordinates).toEqual([[[
@@ -81,6 +94,22 @@ describe('reprojectGeoJSONFromWorld', () => {
             [expect.closeTo(45, 9), expect.closeTo(45, 9), 3],
             [expect.closeTo(0, 9), expect.closeTo(0, 9), 1]
         ]]]);
+    });
+});
+
+describe('reprojectGeoJSONFromWorld for data in the projection\'s own coordinates', () => {
+    test('round trips a position far outside the lng/lat range', () => {
+        const point: GeoJSON.Point = {type: 'Point', coordinates: [500, 500]};
+        const roundTripped = reprojectGeoJSONFromWorld(reprojectGeoJSONToWorld(point, inTimesTenCrs), inTimesTenCrs);
+        expect(roundTripped.coordinates).toEqual([expect.closeTo(500, 9), expect.closeTo(500, 9)]);
+    });
+});
+
+describe('reprojectGeoJSONFromCRSToLngLat', () => {
+    test('moves a position in the projection\'s coordinates to the lng/lat the map\'s world coordinate helper gives it', () => {
+        const point: GeoJSON.Point = {type: 'Point', coordinates: [450, 450, 7]};
+        const lngLatPoint = reprojectGeoJSONFromCRSToLngLat(point, timesTenCrs.tileMatrixSet, new CRSWorldCoordinateHelper(timesTenCrs));
+        expect(lngLatPoint.coordinates).toEqual([expect.closeTo(45, 9), expect.closeTo(45, 9), 7]);
     });
 });
 
@@ -95,7 +124,7 @@ describe('reprojectGeoJSONSourceDiffToWorld', () => {
             ]
         } satisfies GeoJSONSourceDiff;
 
-        const result = reprojectGeoJSONSourceDiffToWorld(diff, createIdentityHelper());
+        const result = reprojectGeoJSONSourceDiffToWorld(diff, identityCrs);
 
         expect(result.remove).toEqual(['gone']);
         expect((result.add[0].geometry as GeoJSON.Point).coordinates).toEqual([0.75, 0.25]);

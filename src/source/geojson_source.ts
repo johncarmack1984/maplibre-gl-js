@@ -12,6 +12,7 @@ import {tileIdToLngLatBounds} from '../tile/tile_id_to_lng_lat_bounds.ts';
 import {UpdateQueue} from '../util/update_queue.ts';
 import {getRegisteredProjection} from '../geo/projection/projection_crud.ts';
 import {identityCrs} from '../geo/projection/crs.ts';
+import {reprojectGeoJSONFromCRSToLngLat} from '../util/geojson_reproject.ts';
 
 import type {LngLatBounds} from '../geo/lng_lat_bounds.ts';
 import type {Source} from './source.ts';
@@ -32,10 +33,17 @@ export type GeoJSONSourceOptions = GeoJSONSourceSpecification & {
     workerOptions?: GeoJSONWorkerOptions;
     collectResourceTiming?: boolean;
     data: GeoJSON.GeoJSON | string;
+    /**
+     * @experimental
+     * The name of the map's registered projection when the coordinates in `data` are already in that projection
+     * instead of lng/lat. Such data needs no `wkt` or projection handler, see the custom CRS guide.
+     */
+    dataProjection?: string;
 };
 
 export type GeoJSONSourceInternalOptions = {
     data?: GeoJSON.GeoJSON | string | undefined;
+    dataProjection?: string;
     cluster?: boolean;
     clusterMaxZoom?: number;
     clusterRadius?: number;
@@ -352,7 +360,7 @@ export class GeoJSONSource extends Evented<SourceEventType> implements Source {
      * @returns a promise which resolves to the source's boundaries
      */
     async getBounds(): Promise<LngLatBounds> {
-        return getGeoJSONBounds(await this.getData());
+        return getGeoJSONBounds(this._dataToLngLat(await this.getData()));
     }
 
     /**
@@ -492,18 +500,35 @@ export class GeoJSONSource extends Evented<SourceEventType> implements Source {
     }
 
     /**
-     * The map's registered projection as the workers take it, see {@link LoadGeoJSONParameters.crs}. The workers can
-     * build a definition's converter from its `wkt`, or the built-in identity one without, so any other definition is
-     * left out with a warning.
+     * The map's registered projection as the workers take it, see {@link LoadGeoJSONParameters.crs}. Data that
+     * `dataProjection` puts in that projection goes without a `wkt`, since it needs no conversion. Other data needs the
+     * definition's `wkt` for the workers to build its converter from, or the built-in identity one without, so any other
+     * definition is left out with a warning.
      */
     private _getCRSParameters(): LoadGeoJSONParameters['crs'] | undefined {
         const definition = getRegisteredProjection(this.map?.style?.projection?.name);
+        const {dataProjection} = this._options;
+        if (dataProjection !== undefined && dataProjection !== definition?.name) {
+            warnOnce(`GeoJSON source "${this.id}" reads its data as lng/lat: its \`dataProjection\` "${dataProjection}" is not the map's registered projection.`);
+        }
         if (!definition) return undefined;
-        if (!definition.wkt && definition !== identityCrs) {
+        const inProjection = dataProjection === definition.name;
+        if (!inProjection && !definition.wkt && definition !== identityCrs) {
             warnOnce(`GeoJSON source "${this.id}" is drawn in the wrong place: the projection "${definition.name}" has no \`wkt\` to project its data with.`);
             return undefined;
         }
-        return {name: definition.name, wkt: definition.wkt, tileMatrixSet: definition.tileMatrixSet};
+        return {name: definition.name, wkt: inProjection ? undefined : definition.wkt, tileMatrixSet: definition.tileMatrixSet};
+    }
+
+    /**
+     * GeoJSON of this source in lng/lat: data that `dataProjection` puts in the map's registered projection is
+     * rewritten from the projection's coordinates, and other data is lng/lat already.
+     */
+    private _dataToLngLat<T extends GeoJSON.GeoJSON>(data: T): T {
+        const definition = getRegisteredProjection(this.map?.style?.projection?.name);
+        const {dataProjection} = this._options;
+        if (dataProjection === undefined || dataProjection !== definition?.name) return data;
+        return reprojectGeoJSONFromCRSToLngLat(data, definition.tileMatrixSet, this.map.style.projection.worldCoordinateHelper);
     }
 
     /**
@@ -616,7 +641,7 @@ export class GeoJSONSource extends Evented<SourceEventType> implements Source {
 
         const affectedBounds = affectedGeometries
             .filter(Boolean)
-            .map(g => getGeoJSONBounds(g));
+            .map(g => getGeoJSONBounds(this._dataToLngLat(g)));
 
         return {affectedBounds};
     }

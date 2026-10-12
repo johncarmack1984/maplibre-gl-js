@@ -8,7 +8,7 @@ import {isAbortError} from '../util/abort_error.ts';
 import {WorkerTile} from './worker_tile.ts';
 import {WorkerTileState} from './worker_tile_state.ts';
 import {extend, JSON_PREFIX} from '../util/util.ts';
-import {createWorkerCRSHelper} from './projection_handler_worker.ts';
+import {createWorkerCRS} from './projection_handler_worker.ts';
 import {reprojectGeoJSONFromWorld, reprojectGeoJSONSourceDiffToWorld, reprojectGeoJSONToWorld} from '../util/geojson_reproject.ts';
 
 import type {GeoJSONSourceDiff} from './geojson_source_diff.ts';
@@ -18,7 +18,7 @@ import type {RequestParameters} from '../util/ajax.ts';
 import type {ClusterIDAndSource, GeoJSONWorkerSourceLoadDataResult, RemoveSourceParams} from '../util/actor_messages.ts';
 import type {IActor} from '../util/actor.ts';
 import type {StyleLayerIndex} from '../style/style_layer_index.ts';
-import type {CRSDefinition, CRSWorldCoordinateHelper} from '../geo/projection/crs.ts';
+import type {CRSDefinition} from '../geo/projection/crs.ts';
 
 /**
  * The geojson worker options that can be passed to the worker
@@ -56,7 +56,8 @@ export type LoadGeoJSONParameters = GeoJSONWorkerOptions & {
     updateCluster?: boolean;
     /**
      * The map's registered projection, if it has one: the data is moved into that projection's world square before it
-     * is tiled, the way tiles of the projection's own grid sit in it.
+     * is tiled, the way tiles of the projection's own grid sit in it. Without a `wkt`, the data is taken as already in
+     * the projection's own coordinates.
      */
     crs?: Pick<CRSDefinition, 'name' | 'wkt' | 'tileMatrixSet'>;
 };
@@ -79,10 +80,10 @@ export class GeoJSONWorkerSource implements WorkerSource {
     _geoJSONIndex: GeoJSONVT;
     _createGeoJSONIndex: typeof createGeoJSONIndex;
     /**
-     * The world coordinate helper of the registered projection the index holds its data in, see
+     * The definition the worker builds for the registered projection the index holds its data in, see
      * {@link LoadGeoJSONParameters.crs}: `undefined` without one, or without a projection handler to build it with.
      */
-    _crsHelper: CRSWorldCoordinateHelper | undefined;
+    _crsDefinition: CRSDefinition | undefined;
 
     constructor(actor: IActor, layerIndex: StyleLayerIndex, availableImages: string[], createGeoJSONIndexFunc: typeof createGeoJSONIndex = createGeoJSONIndex) {
         this.actor = actor;
@@ -260,18 +261,18 @@ export class GeoJSONWorkerSource implements WorkerSource {
             params.data = (await getJSON<GeoJSON.GeoJSON>(params.request, abortController)).data;
         }
 
-        this._crsHelper = params.crs ? createWorkerCRSHelper(params.crs) : undefined;
+        this._crsDefinition = params.crs ? createWorkerCRS(params.crs) : undefined;
 
         if (params.data) {
             params.data = this._filterGeoJSON(params.data, params.filter, params.source);
-            const indexData = this._crsHelper ? reprojectGeoJSONToWorld(params.data, this._crsHelper) : params.data;
-            this._geoJSONIndex = this._createGeoJSONIndex(indexData, params, this._crsHelper !== undefined);
+            const indexData = this._crsDefinition ? reprojectGeoJSONToWorld(params.data, this._crsDefinition) : params.data;
+            this._geoJSONIndex = this._createGeoJSONIndex(indexData, params, this._crsDefinition !== undefined);
             return;
         }
 
         if (params.dataDiff) {
-            this._geoJSONIndex ??= this._createGeoJSONIndex({type: 'FeatureCollection', features: []}, params, this._crsHelper !== undefined);
-            const indexDiff = this._crsHelper ? reprojectGeoJSONSourceDiffToWorld(params.dataDiff, this._crsHelper) : params.dataDiff;
+            this._geoJSONIndex ??= this._createGeoJSONIndex({type: 'FeatureCollection', features: []}, params, this._crsDefinition !== undefined);
+            const indexDiff = this._crsDefinition ? reprojectGeoJSONSourceDiffToWorld(params.dataDiff, this._crsDefinition) : params.dataDiff;
             this._geoJSONIndex.updateData(indexDiff, this._getFilterPredicate(params.filter, params.source));
         }
 
@@ -319,7 +320,7 @@ export class GeoJSONWorkerSource implements WorkerSource {
     }
 
     getClusterChildren(params: ClusterIDAndSource): GeoJSON.Feature[] {
-        return this._toLngLat(this._geoJSONIndex.getClusterChildren(params.clusterId));
+        return this._toDataCoordinates(this._geoJSONIndex.getClusterChildren(params.clusterId));
     }
 
     getClusterLeaves(params: {
@@ -327,14 +328,14 @@ export class GeoJSONWorkerSource implements WorkerSource {
         limit: number;
         offset: number;
     }): GeoJSON.Feature[] {
-        return this._toLngLat(this._geoJSONIndex.getClusterLeaves(params.clusterId, params.limit, params.offset));
+        return this._toDataCoordinates(this._geoJSONIndex.getClusterLeaves(params.clusterId, params.limit, params.offset));
     }
 
     /**
-     * Moves features the index returns back from the registered projection's world square to lng/lat.
+     * Moves features the index returns back from the registered projection's world square to the data's coordinates.
      */
-    _toLngLat(features: GeoJSON.Feature[]): GeoJSON.Feature[] {
-        return this._crsHelper ? features.map(feature => reprojectGeoJSONFromWorld(feature, this._crsHelper)) : features;
+    _toDataCoordinates(features: GeoJSON.Feature[]): GeoJSON.Feature[] {
+        return this._crsDefinition ? features.map(feature => reprojectGeoJSONFromWorld(feature, this._crsDefinition)) : features;
     }
 }
 

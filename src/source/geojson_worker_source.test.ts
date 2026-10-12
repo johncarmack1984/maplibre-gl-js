@@ -702,6 +702,8 @@ describe('loadData in a registered projection', () => {
     const pointAt45 = {type: 'Feature', id: 'p', properties: {}, geometry: {type: 'Point', coordinates: [45, 45]}} as GeoJSON.Feature;
     const identityParameters = {name: 'identity', tileMatrixSet: identityCrs.tileMatrixSet};
     const planarParameters = {name: 'EPSG:test', wkt: 'PROJCS["test"]', tileMatrixSet: {origin: [-1000, 1000], extentAtZoom0: 2000}};
+    const inPlanarParameters = {name: 'EPSG:test', tileMatrixSet: {origin: [-1000, 1000], extentAtZoom0: 2000}};
+    const pointAt500 = {...pointAt45, geometry: {type: 'Point', coordinates: [500, 500]}} as GeoJSON.Feature;
 
     afterEach(() => {
         setProjectionHandler(null);
@@ -746,6 +748,13 @@ describe('loadData in a registered projection', () => {
         await source.loadData({source: 'source', data: pointAt45, geojsonVtOptions: {}, crs: planarParameters} as LoadGeoJSONParameters);
 
         expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    test('tiles data without a wkt where the tile matrix set puts it, with no projection handler', async () => {
+        const source = new GeoJSONWorkerSource(createFakeActor(), new StyleLayerIndex(), []);
+        await source.loadData({source: 'source', data: pointAt500, geojsonVtOptions: {}, crs: inPlanarParameters} as LoadGeoJSONParameters);
+
+        expect(firstFeatureInRootTile(source).loadGeometry()[0][0]).toMatchObject({x: 3072, y: 1024});
     });
 
     test('warns about a wkt that no projection handler can project', async () => {
@@ -825,5 +834,16 @@ describe('loadData in a registered projection', () => {
         const leaves = source.getClusterLeaves({clusterId, limit: 10, offset: 0});
 
         expect((leaves[0].geometry as GeoJSON.Point).coordinates).toEqual([expect.closeTo(45, 9), expect.closeTo(45, 9)]);
+    });
+
+    test('returns cluster leaves of data without a wkt in the projection\'s own coordinates', async () => {
+        const source = new GeoJSONWorkerSource(createFakeActor(), new StyleLayerIndex(), []);
+        const twoPointsAt500 = {type: 'FeatureCollection', features: [pointAt500, {...pointAt500, id: 'q'}]} as GeoJSON.FeatureCollection;
+        await source.loadData({source: 'source', data: twoPointsAt500, geojsonVtOptions: {cluster: true, clusterOptions: {}}, crs: inPlanarParameters} as LoadGeoJSONParameters);
+        const clusterId = firstFeatureInRootTile(source).properties.cluster_id as number;
+
+        const leaves = source.getClusterLeaves({clusterId, limit: 10, offset: 0});
+
+        expect((leaves[0].geometry as GeoJSON.Point).coordinates).toEqual([expect.closeTo(500, 9), expect.closeTo(500, 9)]);
     });
 });

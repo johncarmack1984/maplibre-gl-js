@@ -1,4 +1,4 @@
-import {CRSWorldCoordinateHelper, identityCrs, type CRSDefinition} from '../geo/projection/crs.ts';
+import {identityCrs, type CRSDefinition} from '../geo/projection/crs.ts';
 import {warnOnce} from '../util/util.ts';
 
 /**
@@ -28,16 +28,17 @@ export function setProjectionHandler(handler: ProjectionHandler | null): void {
 
 /**
  * @internal
- * The world coordinate helper a worker builds for a registered projection the main thread describes: from the
- * definition's WKT through the projection handler, or the built-in identity CRS when there is no WKT. `undefined`,
- * with a warning, when a WKT comes with no handler set.
+ * The definition a worker builds for a registered projection the main thread describes: with a WKT, the projection
+ * handler builds the conversion from lng/lat; without one, the data is already in the projection's own coordinates
+ * (the identity projection's lng/lat, or data whose `dataProjection` names the projection) and needs no conversion.
+ * `undefined`, with a warning, when a WKT comes with no handler set.
  */
-export function createWorkerCRSHelper(crs: Pick<CRSDefinition, 'name' | 'wkt' | 'tileMatrixSet'>): CRSWorldCoordinateHelper | undefined {
-    if (!crs.wkt) return new CRSWorldCoordinateHelper(identityCrs);
+export function createWorkerCRS(crs: Pick<CRSDefinition, 'name' | 'wkt' | 'tileMatrixSet'>): CRSDefinition | undefined {
+    if (!crs.wkt) return {name: crs.name, projection: identityCrs.projection, tileMatrixSet: crs.tileMatrixSet};
     if (!projectionHandler) {
         warnOnce('GeoJSON sources are drawn in the wrong place: no projection handler is set in the workers, see `setProjectionHandler` in the custom CRS guide.');
         return undefined;
     }
     if (!projections.has(crs.wkt)) projections.set(crs.wkt, projectionHandler(crs.wkt));
-    return new CRSWorldCoordinateHelper({name: crs.name, wkt: crs.wkt, projection: projections.get(crs.wkt), tileMatrixSet: crs.tileMatrixSet});
+    return {name: crs.name, wkt: crs.wkt, projection: projections.get(crs.wkt), tileMatrixSet: crs.tileMatrixSet};
 }
