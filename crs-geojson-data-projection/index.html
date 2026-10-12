@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <title>Display GeoJSON in the Dutch national grid</title>
-    <meta property="og:description" content="Draw buildings that a national service returns in the map's EPSG:28992 CRS with dataProjection, with no projection plugin in the workers." />
+    <meta property="og:description" content="Draw buildings that a national service returns in the map's EPSG:28992 CRS with dataProjection, with no projection handler in the workers." />
     <meta property="og:category" content="Vector & GeoJSON" />
     <meta property="og:created" content="2026-10-12" />
     <meta charset='utf-8'>
@@ -46,7 +46,7 @@
                 },
                 // Buildings around Dam Square, which PDOK returns in EPSG:28992 meters when the request asks for it
                 // with `crs`. The coordinates are already in the map's projection, so the workers need no projection
-                // plugin and the definition above needs no `wkt`.
+                // handler and the definition above needs no `wkt`.
                 'buildings': {
                     type: 'geojson',
                     data: 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items?f=json&limit=1000&bbox=4.888,52.371,4.896,52.375&crs=http://www.opengis.net/def/crs/EPSG/0/28992',
