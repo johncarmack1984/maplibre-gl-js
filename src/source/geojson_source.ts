@@ -35,15 +35,15 @@ export type GeoJSONSourceOptions = GeoJSONSourceSpecification & {
     data: GeoJSON.GeoJSON | string;
     /**
      * @experimental
-     * The name of the map's registered projection when the coordinates in `data` are already in that projection
-     * instead of lng/lat. Such data needs no `wkt` or projection handler, see the custom CRS guide.
+     * `'map'` when the coordinates in `data` are already in the map's registered projection instead of lng/lat. Such
+     * data needs no `wkt` or projection handler, see the custom CRS guide.
      */
-    dataProjection?: string;
+    dataProjection?: 'map';
 };
 
 export type GeoJSONSourceInternalOptions = {
     data?: GeoJSON.GeoJSON | string | undefined;
-    dataProjection?: string;
+    dataProjection?: 'map';
     cluster?: boolean;
     clusterMaxZoom?: number;
     clusterRadius?: number;
@@ -500,19 +500,18 @@ export class GeoJSONSource extends Evented<SourceEventType> implements Source {
     }
 
     /**
-     * The map's registered projection as the workers take it, see {@link LoadGeoJSONParameters.crs}. Data that
-     * `dataProjection` puts in that projection goes without a `wkt`, since it needs no conversion. Other data needs the
-     * definition's `wkt` for the workers to build its converter from, or the built-in identity one without, so any other
-     * definition is left out with a warning.
+     * The map's registered projection as the workers take it, see {@link LoadGeoJSONParameters.crs}. Data whose
+     * `dataProjection` is `'map'` goes without a `wkt`, since it needs no conversion. Other data needs the definition's
+     * `wkt` for the workers to build its converter from, or the built-in identity one without, so any other definition
+     * is left out with a warning.
      */
     private _getCRSParameters(): LoadGeoJSONParameters['crs'] | undefined {
         const definition = getRegisteredProjection(this.map?.style?.projection?.name);
-        const {dataProjection} = this._options;
-        if (dataProjection !== undefined && dataProjection !== definition?.name) {
-            warnOnce(`GeoJSON source "${this.id}" reads its data as lng/lat: its \`dataProjection\` "${dataProjection}" is not the map's registered projection.`);
+        const inProjection = this._options.dataProjection === 'map';
+        if (inProjection && !definition) {
+            warnOnce(`GeoJSON source "${this.id}" reads its data as lng/lat: its \`dataProjection\` is "map", but the map's projection is not a registered one.`);
         }
         if (!definition) return undefined;
-        const inProjection = dataProjection === definition.name;
         if (!inProjection && !definition.wkt && definition !== identityCrs) {
             warnOnce(`GeoJSON source "${this.id}" is drawn in the wrong place: the projection "${definition.name}" has no \`wkt\` to project its data with.`);
             return undefined;
@@ -521,13 +520,12 @@ export class GeoJSONSource extends Evented<SourceEventType> implements Source {
     }
 
     /**
-     * GeoJSON of this source in lng/lat: data that `dataProjection` puts in the map's registered projection is
-     * rewritten from the projection's coordinates, and other data is lng/lat already.
+     * GeoJSON of this source in lng/lat: data whose `dataProjection` is `'map'` is rewritten from the coordinates of the
+     * map's registered projection, and other data is lng/lat already.
      */
     private _dataToLngLat<T extends GeoJSON.GeoJSON>(data: T): T {
         const definition = getRegisteredProjection(this.map?.style?.projection?.name);
-        const {dataProjection} = this._options;
-        if (dataProjection === undefined || dataProjection !== definition?.name) return data;
+        if (this._options.dataProjection !== 'map' || !definition) return data;
         return reprojectGeoJSONFromCRSToLngLat(data, definition.tileMatrixSet, this.map.style.projection.worldCoordinateHelper);
     }
 

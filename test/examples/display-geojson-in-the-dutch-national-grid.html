@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <title>Display GeoJSON in the Dutch national grid</title>
-    <meta property="og:description" content="Draw buildings that a national service returns in the map's EPSG:28992 CRS with dataProjection, with no projection handler in the workers." />
+    <meta property="og:description" content="Draw buildings that a national service returns in the map's EPSG:28992 CRS with dataProjection 'map', with no projection handler in the workers." />
     <meta property="og:category" content="Vector & GeoJSON" />
     <meta property="og:created" content="2026-10-12" />
     <meta charset='utf-8'>
@@ -50,7 +50,7 @@
                 'buildings': {
                     type: 'geojson',
                     data: 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items?f=json&limit=1000&bbox=4.888,52.371,4.896,52.375&crs=http://www.opengis.net/def/crs/EPSG/0/28992',
-                    dataProjection: 'EPSG:28992',
+                    dataProjection: 'map',
                     attribution: '&copy; <a href="https://www.kadaster.nl/">Kadaster</a> BAG'
                 }
             },

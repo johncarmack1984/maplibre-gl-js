@@ -431,36 +431,43 @@ describe('GeoJSONSource in a registered projection', () => {
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('the projection "EPSG:test" has no `wkt`'));
     });
 
-    test('sends data whose dataProjection names the projection to the worker without the wkt', async () => {
+    test('sends data whose dataProjection is map to the worker without the wkt', async () => {
         const definition = {...planarCrs, wkt: 'PROJCS["test"]'};
         addProjection(definition);
-        const {source, sent} = loadSourceInProjection(definition, {data: {}, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions);
+        const {source, sent} = loadSourceInProjection(definition, {data: {}, dataProjection: 'map'} as GeoJSONSourceOptions);
         await waitForMetadataEvent(source);
 
         expect(sent[0].crs).toEqual({name: 'EPSG:test', wkt: undefined, tileMatrixSet: planarCrs.tileMatrixSet});
     });
 
-    test('sends data whose dataProjection names a projection without a wkt to the worker', async () => {
+    test('sends data whose dataProjection is map to the worker when the projection has no wkt', async () => {
         addProjection(planarCrs);
-        const {source, sent} = loadSourceInProjection(planarCrs, {data: {}, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions);
+        const {source, sent} = loadSourceInProjection(planarCrs, {data: {}, dataProjection: 'map'} as GeoJSONSourceOptions);
         await waitForMetadataEvent(source);
 
         expect(sent[0].crs).toEqual({name: 'EPSG:test', wkt: undefined, tileMatrixSet: planarCrs.tileMatrixSet});
     });
 
-    test('warns when dataProjection does not name the map\'s projection', async () => {
+    test('warns and sends no projection when dataProjection is map on a mercator map', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const definition = {...planarCrs, wkt: 'PROJCS["test"]'};
-        addProjection(definition);
-        const {source} = loadSourceInProjection(definition, {data: {}, dataProjection: 'EPSG:other'} as GeoJSONSourceOptions);
+        const sent: LoadGeoJSONParameters[] = [];
+        const source = new GeoJSONSource('id', {data: {}, dataProjection: 'map'} as GeoJSONSourceOptions, wrapDispatcher({
+            sendAsync(message: ActorMessage<any>) {
+                sent.push(message.data);
+                return Promise.resolve({});
+            }
+        }), undefined);
+        source.map = {style: {projection: new MercatorProjection()}} as any as Map;
+        source.load();
         await waitForMetadataEvent(source);
 
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('`dataProjection` "EPSG:other" is not the map\'s registered projection'));
+        expect(sent[0].crs).toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('its `dataProjection` is "map", but the map\'s projection is not a registered one'));
     });
 
-    test('returns lng/lat bounds for data whose dataProjection names the projection', async () => {
+    test('returns lng/lat bounds for data whose dataProjection is map', async () => {
         addProjection(timesTenCrs);
-        const source = new GeoJSONSource('id', {data: pointAt45InTimesTenCrs, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        const source = new GeoJSONSource('id', {data: pointAt45InTimesTenCrs, dataProjection: 'map'} as GeoJSONSourceOptions, mockDispatcher, undefined);
         source.map = {style: {projection: new MercatorProjection(new CRSWorldCoordinateHelper(timesTenCrs))}} as any as Map;
 
         const bounds = await source.getBounds();
@@ -470,7 +477,7 @@ describe('GeoJSONSource in a registered projection', () => {
 
     test('reloads the tile that contains a feature a diff adds in the projection\'s own coordinates', async () => {
         addProjection(timesTenCrs);
-        const source = new GeoJSONSource('id', {data: {type: 'FeatureCollection', features: []}, dataProjection: 'EPSG:test'} as GeoJSONSourceOptions, mockDispatcher, undefined);
+        const source = new GeoJSONSource('id', {data: {type: 'FeatureCollection', features: []}, dataProjection: 'map'} as GeoJSONSourceOptions, mockDispatcher, undefined);
         source.map = {style: {projection: new MercatorProjection(new CRSWorldCoordinateHelper(timesTenCrs))}} as any as Map;
         const northEastQuarterTile = new Tile(new OverscaledTileID(1, 0, 1, 1, 0), source.tileSize);
         northEastQuarterTile.state = 'loaded';

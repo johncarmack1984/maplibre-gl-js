@@ -30,7 +30,7 @@ export function setProjectionHandler(handler: ProjectionHandler | null): void {
  * @internal
  * The definition a worker builds for a registered projection the main thread describes: with a WKT, the projection
  * handler builds the conversion from lng/lat; without one, the data is already in the projection's own coordinates
- * (the identity projection's lng/lat, or data whose `dataProjection` names the projection) and needs no conversion.
+ * (the identity projection's lng/lat, or data whose `dataProjection` is `'map'`) and needs no conversion.
  * `undefined`, with a warning, when a WKT comes with no handler set.
  */
 export function createWorkerCRS(crs: Pick<CRSDefinition, 'name' | 'wkt' | 'tileMatrixSet'>): CRSDefinition | undefined {

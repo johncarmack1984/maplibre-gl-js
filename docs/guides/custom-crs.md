@@ -188,17 +188,17 @@ The data stays in lng/lat: `getData`, `queryRenderedFeatures` and the cluster me
 
 ### Data already in the map's projection
 
-Some services return GeoJSON in a national grid on request, like PDOK's OGC APIs with a `crs` parameter. Set the source's `dataProjection` to the map's projection and its coordinates are placed on the grid as they are, so the source needs neither a `wkt` nor a handler, and a hand-written definition works too:
+Some services return GeoJSON in a national grid on request, like PDOK's OGC APIs with a `crs` parameter. Set the source's `dataProjection` to `'map'` and its coordinates are placed on the grid as they are, so the source needs neither a `wkt` nor a handler, and a hand-written definition works too:
 
 ```js
 map.addSource('buildings', {
     type: 'geojson',
     data: 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items?f=json&limit=1000&bbox=4.888,52.371,4.896,52.375&crs=http://www.opengis.net/def/crs/EPSG/0/28992',
-    dataProjection: 'EPSG:28992'
+    dataProjection: 'map'
 });
 ```
 
-`getData` and the cluster methods return the data's own coordinates, and `setData` and `updateData` take them, while `queryRenderedFeatures` and `getBounds` return lng/lat like the rest of the map. A `dataProjection` other than the map's projection logs a warning, and the data is read as lng/lat. [Display GeoJSON in the Dutch national grid](../examples/display-geojson-in-the-dutch-national-grid.md) shows a complete page.
+`getData` and the cluster methods return the data's own coordinates, and `setData` and `updateData` take them, while `queryRenderedFeatures` and `getBounds` return lng/lat like the rest of the map. On a map whose projection isn't a registered one, `dataProjection: 'map'` logs a warning, and the data is read as lng/lat. [Display GeoJSON in the Dutch national grid](../examples/display-geojson-in-the-dutch-national-grid.md) shows a complete page.
 
 ## What keeps working
 
