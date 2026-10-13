@@ -33,7 +33,7 @@
     </div>
     <div class="pane">
         <div id="right" class="map"></div>
-        <div class="label"><b>With #8335</b>: the same tiles through a protocol handler that answers the 418 with an empty body (or a 404), and <code>emptyTileBehavior: 'missing'</code> on the source, so the z11 tile shows through right away.</div>
+        <div class="label"><b>With #8335</b>: the same tiles through a protocol handler that answers the 418 with an empty body (or a 404), and <code>emptyTileBehavior: 'fallback'</code> on the source, so the z11 tile shows through right away.</div>
         <div class="stat" id="right-stat"></div>
     </div>
 </div>
@@ -105,7 +105,7 @@
     }
 
     const left = createMap('left', {type: 'vector', tiles: [TILES], minzoom: 7, maxzoom: 12});
-    const right = createMap('right', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'missing'});
+    const right = createMap('right', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'fallback'});
 
     // Mapeak's workaround, verbatim in spirit: ignore the 418s, log the rest.
     left.on('error', (e) => {
@@ -147,7 +147,7 @@
         for (const layer of tracesLayers) right.removeLayer(layer.id);
         right.removeSource('traces');
         counts.right = {requested: 0, missing: 0};
-        right.addSource('traces', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'missing'});
+        right.addSource('traces', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'fallback'});
         for (const layer of tracesLayers) right.addLayer(layer);
     });
 
