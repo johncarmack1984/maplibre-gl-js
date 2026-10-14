@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>DGGS pole cells in EPSG:3413</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset='utf-8'>
+    <link rel='stylesheet' href='./maplibre-gl.css' />
+    <script src='https://unpkg.com/proj4@2.15.0/dist/proj4.js'></script>
+    <style>body { margin: 0; padding: 0; } html, body, #map { height: 100%; }</style>
+</head>
+<body>
+<div id="map"></div>
+<script type="module">
+    import * as maplibregl from './maplibre-gl.mjs';
+    const params = new URLSearchParams(location.search);
+    const projectionHandlerScript = new Blob([`
+        import proj4 from 'https://cdn.jsdelivr.net/npm/proj4@2.15.0/+esm';
+        self.setProjectionHandler(wkt => proj4(wkt));
+    `], {type: 'text/javascript'});
+    await maplibregl.importScriptInWorkers(URL.createObjectURL(projectionHandlerScript));
+    const epsg3413 = '+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs';
+    maplibregl.addProjection({name: 'EPSG:3413', wkt: epsg3413, projection: proj4('EPSG:4326', epsg3413), tileMatrixSet: {origin: [-4194304, 4194304], extentAtZoom0: 8388608}});
+    const gibs = layer => `https://gibs.earthdata.nasa.gov/wms/epsg3413/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&SRS=EPSG:3413&BBOX={bbox}&WIDTH=512&HEIGHT=512&FORMAT=image/png&TRANSPARENT=TRUE&LAYERS=${layer}`;
+    const cells = {"type": "FeatureCollection", "features": [
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[0.0,89.31865],[37.8245,88.10424],[64.65435,87.43262],[91.6147,87.67805],[125.03047,88.57819],[180.0,89.52868],[0.0,89.31865]]]},"id":"9466","properties":{"id":"9466","cell":"north-pole"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-125.03047,88.57819],[-180.0,89.52868],[-234.96953,88.57819],[-210.56611,87.70909],[-180.0,87.22636],[-149.43389,87.70909],[-125.03047,88.57819]]]},"id":"9498","properties":{"id":"9498","cell":"neighbour"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-64.65435,87.43262],[-37.8245,88.10424],[0.0,89.31865],[180.0,89.52868],[234.96953,88.57819],[268.3853,87.67805],[295.34565,87.43262]]]},"id":"9499","properties":{"id":"9499","cell":"neighbour"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-23.6302,87.10179],[0.0,87.00968],[23.6302,87.10179],[37.8245,88.10424],[0.0,89.31865],[-37.8245,88.10424],[-23.6302,87.10179]]]},"id":"9467","properties":{"id":"9467","cell":"neighbour"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[23.6302,87.10179],[34.07171,85.8622],[49.13926,85.41247],[62.19719,86.07699],[64.65435,87.43262],[37.8245,88.10424],[23.6302,87.10179]]]},"id":"9434","properties":{"id":"9434","cell":"neighbour"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[64.65435,87.43262],[62.19719,86.07699],[73.50397,85.18877],[87.69711,85.38481],[98.45803,86.49213],[91.6147,87.67805],[64.65435,87.43262]]]},"id":"9433","properties":{"id":"9433","cell":"neighbour"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[125.03047,88.57819],[91.6147,87.67805],[98.45803,86.49213],[115.9984,86.14124],[135.92292,86.66288],[149.43389,87.70909],[125.03047,88.57819]]]},"id":"9465","properties":{"id":"9465","cell":"neighbour"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[88.3853,-87.67805],[54.96953,-88.57819],[0.0,-89.52868],[180.0,-89.31865],[142.1755,-88.10424],[115.34565,-87.43262],[88.3853,-87.67805]]]},"id":"2858","properties":{"id":"2858","cell":"south-pole"}}
+]};
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            version: 8,
+            projection: {type: 'EPSG:3413'},
+            sources: {
+                'blue-marble': {type: 'raster', tiles: [gibs('BlueMarble_ShadedRelief_Bathymetry')], tileSize: 512, maxzoom: 6, attribution: 'Imagery: NASA GIBS'},
+                cells: {type: 'geojson', data: cells}
+            },
+            layers: [
+                {id: 'blue-marble', type: 'raster', source: 'blue-marble'},
+                {id: 'fill', type: 'fill', source: 'cells', paint: {'fill-color': ['match', ['get', 'cell'], 'north-pole', '#d6336c', 'south-pole', '#f59f00', '#2b8a3e'], 'fill-opacity': 0.7}},
+                {id: 'line', type: 'line', source: 'cells', paint: {'line-color': '#fff', 'line-width': 1.5}}
+            ]
+        },
+        center: [Number(params.get('lng') ?? -40), Number(params.get('lat') ?? 78)],
+        zoom: Number(params.get('zoom') ?? 1.2)
+    });
+    map.addControl(new maplibregl.NavigationControl());
+</script>
+</body>
+</html>
