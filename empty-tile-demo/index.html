@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>emptyTileBehavior on Mapeak's Open Heatmap (maplibre-gl-js #8335)</title>
+    <title>emptyResponse on Mapeak's Open Heatmap (maplibre-gl-js #8335)</title>
     <link rel="stylesheet" href="./maplibre-gl.css">
     <style>
         html, body { height: 100%; }
@@ -20,7 +20,7 @@
 </head>
 <body>
 <header>
-    <span><strong>emptyTileBehavior</strong> on Mapeak's Open Heatmap: OSM traces as vector tiles, z7 to z12, HTTP 418 with an empty body where there is no tile. Source option from <a href="https://github.com/maplibre/maplibre-gl-js/pull/8335">maplibre-gl-js #8335</a>, both sources set <code>maxzoom: 12</code>, the deepest level the heatmap has.</span>
+    <span><strong>emptyResponse</strong> on Mapeak's Open Heatmap: OSM traces as vector tiles, z7 to z12, HTTP 418 with an empty body where there is no tile. Source option from <a href="https://github.com/maplibre/maplibre-gl-js/pull/8335">maplibre-gl-js #8335</a>, both sources set <code>maxzoom: 12</code>, the deepest level the heatmap has.</span>
     <label><input type="checkbox" id="sync" checked> keep the views in sync</label>
 </header>
 <div id="maps">
@@ -31,7 +31,7 @@
     </div>
     <div class="pane">
         <div id="right" class="map"></div>
-        <div class="label"><b>With #8335</b>: the same tiles through a protocol handler that answers the 418 with an empty body, and <code>emptyTileBehavior: 'fallback'</code> on the source, so the z11 tile shows through right away.</div>
+        <div class="label"><b>With #8335</b>: the same tiles through a protocol handler that answers the 418 with an empty body, and <code>emptyResponse: 'missing'</code> on the source, so the z11 tile shows through right away.</div>
         <div class="stat" id="right-stat"></div>
     </div>
 </div>
@@ -99,7 +99,7 @@
     }
 
     const left = createMap('left', {type: 'vector', tiles: [TILES], minzoom: 7, maxzoom: 12});
-    const right = createMap('right', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyTileBehavior: 'fallback'});
+    const right = createMap('right', {type: 'vector', tiles: [TILES.replace('https://', 'mapeak://')], minzoom: 7, maxzoom: 12, emptyResponse: 'missing'});
 
     // Mapeak's workaround, verbatim in spirit: ignore the 418s, log the rest.
     left.on('error', (e) => {
