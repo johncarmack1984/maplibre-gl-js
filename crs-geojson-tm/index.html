@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>World countries on NZTM</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="./maplibre-gl.css">
+    <script src="https://unpkg.com/proj4@2.15.0/dist/proj4.js"></script>
+    <style>body { margin: 0; } html, body, #map { height: 100%; }</style>
+</head>
+<body>
+<div id="map"></div>
+<script type="module">
+    // maplibre-gl built from main at 17eb78b3b: registered projections are not in a release yet.
+    import * as maplibregl from './maplibre-gl.mjs';
+    const nztm = '+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs';
+    const handler = new Blob([`
+        import proj4 from 'https://cdn.jsdelivr.net/npm/proj4@2.15.0/+esm';
+        self.setProjectionHandler(definition => proj4(definition));
+    `], {type: 'text/javascript'});
+    await maplibregl.importScriptInWorkers(URL.createObjectURL(handler));
+    maplibregl.addProjection({
+        name: 'EPSG:2193',
+        definition: nztm,
+        projection: proj4('EPSG:4326', nztm),
+        tileMatrixSet: {origin: [-3260586.7284, 10438190.1652], extentAtZoom0: 10018754.1714}
+    });
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            version: 8,
+            projection: {type: 'EPSG:2193'},
+            sources: {countries: {type: 'geojson', data: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'}},
+            layers: [
+                {id: 'ocean', type: 'background', paint: {'background-color': '#a5d8ff'}},
+                {id: 'land', type: 'fill', source: 'countries', paint: {'fill-color': '#e9c46a', 'fill-opacity': 0.8}},
+                {id: 'borders', type: 'line', source: 'countries', paint: {'line-color': '#6c4f1a', 'line-width': 1}}
+            ]
+        },
+        center: [173, -41],
+        zoom: 0
+    });
+    map.once('load', () => map.once('idle', () => { window.done = true; }));
+</script>
+</body>
+</html>
