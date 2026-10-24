@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>maplibre-gl-js#8772: terrain at low zoom</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        #map { position: absolute; inset: 0; }
+        #note { position: absolute; z-index: 1; top: 8px; left: 8px; max-width: 420px; padding: 6px 10px; border-radius: 4px; background: rgba(255, 255, 255, 0.9); font: 13px/1.4 system-ui, sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="note">The view from maplibre-gl-js#8772 on a build of its fix: Mapterhorn terrain at exaggeration 200, pitched against the south edge of the world at zoom 1.65. Zoom out below 2 and the terrain keeps its relief. The same view on 6.14.0, flat: <a href="https://larsmaxfield.com/swings/maplibre/flat-terrain-at-bounds/6.14.0">the report's demo</a>.</div>
+    <div id="map"></div>
+    <script type="module">
+        import * as maplibregl from './dist/maplibre-gl.mjs';
+        new maplibregl.Map({
+            container: 'map',
+            zoom: 1.65,
+            center: [0, -85],
+            pitch: 70,
+            hash: true,
+            style: {
+                version: 8,
+                sources: {
+                    terrainSource: {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'},
+                    hillshadeSource: {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'}
+                },
+                layers: [{id: 'hills', type: 'hillshade', source: 'hillshadeSource', paint: {'hillshade-shadow-color': '#473B24'}}],
+                terrain: {source: 'terrainSource', exaggeration: 200}
+            }
+        });
+    </script>
+</body>
+</html>
