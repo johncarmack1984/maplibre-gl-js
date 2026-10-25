@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>queryRenderedFeatures on an unclosed polygon ring</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+    body { margin: 0; font: 14px/1.4 sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; left: 0; right: 340px; }
+    #panel { position: absolute; top: 0; bottom: 0; right: 0; width: 320px; padding: 0 10px; overflow: auto; background: #fff; }
+    pre { white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+    <p>MapLibre GL JS 6.15.0. The blue square is a GeoJSON polygon whose ring has its four corners and does not repeat the first one at the end. It draws as a square, but <code>queryRenderedFeatures</code> only finds it in the upper-right half. Click to query any point.</p>
+    <pre id="out"></pre>
+</div>
+<script type="module">
+    import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl-dev.mjs';
+
+    const ring = [[-30, 30], [30, 30], [30, -30], [-30, -30]];
+    const map = new maplibregl.Map({
+        container: 'map',
+        center: [0, 0],
+        zoom: 1,
+        style: {
+            version: 8,
+            sources: {square: {type: 'geojson', data: {type: 'Polygon', coordinates: [ring]}}},
+            layers: [
+                {id: 'background', type: 'background', paint: {'background-color': '#ffffff'}},
+                {id: 'square', type: 'fill', source: 'square', paint: {'fill-color': '#3b82f6', 'fill-opacity': 0.6}}
+            ]
+        }
+    });
+    window.map = map;
+
+    const out = document.getElementById('out');
+    function query(label, lngLat) {
+        const features = map.queryRenderedFeatures(map.project(lngLat), {layers: ['square']});
+        let line = `${label} at ${JSON.stringify(lngLat)}: ${features.length} feature(s)`;
+        if (features.length) {
+            const corners = features[0].geometry.coordinates[0].map(p => p.map(Math.round));
+            line += `\n  returned ring: ${JSON.stringify(corners)}`;
+        }
+        return line;
+    }
+
+    map.once('idle', () => {
+        out.textContent = [query('upper-right half', [15, 15]), query('lower-left half', [-15, -15])].join('\n\n');
+    });
+    map.on('click', (e) => {
+        out.textContent += `\n\n${query('click', [Math.round(e.lngLat.lng), Math.round(e.lngLat.lat)])}`;
+    });
+</script>
+</body>
+</html>
